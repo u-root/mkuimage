@@ -19,8 +19,8 @@ import (
 
 	gbbgolang "github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
+	"github.com/u-root/mkuimage/testutil"
 	itest "github.com/u-root/mkuimage/uroot/initramfs/test"
-	"github.com/u-root/u-root/pkg/testutil"
 	"github.com/u-root/uio/uio"
 )
 
