@@ -385,7 +385,7 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 		DefaultShell:    *defaultShell,
 		BuildOpts:       buildOpts,
 	}
-	uinitArgs := shlex.Argv(*uinitCmd)
+	uinitArgs := shlex.Split(*uinitCmd)
 	if len(uinitArgs) > 0 {
 		opts.UinitCmd = uinitArgs[0]
 	}
