@@ -18,12 +18,12 @@ import (
 
 	"github.com/u-root/gobusybox/src/pkg/bb/findpkg"
 	gbbgolang "github.com/u-root/gobusybox/src/pkg/golang"
-	"github.com/u-root/u-root/pkg/cpio"
-	"github.com/u-root/u-root/pkg/ldd"
-	"github.com/u-root/u-root/pkg/uflag"
-	"github.com/u-root/u-root/pkg/ulog"
-	"github.com/u-root/u-root/pkg/uroot/builder"
-	"github.com/u-root/u-root/pkg/uroot/initramfs"
+	"github.com/u-root/mkuimage/cpio"
+	"github.com/u-root/mkuimage/ldd"
+	"github.com/u-root/mkuimage/uflag"
+	"github.com/u-root/uio/ulog"
+	"github.com/u-root/mkuimage/uroot/builder"
+	"github.com/u-root/mkuimage/uroot/initramfs"
 )
 
 // These constants are used in DefaultRamfs.

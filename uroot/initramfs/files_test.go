@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/u-root/u-root/pkg/cpio"
-	"github.com/u-root/u-root/pkg/uio"
+	"github.com/u-root/mkuimage/cpio"
+	"github.com/u-root/uio/uio"
 )
 
 func TestFilesAddFileNoFollow(t *testing.T) {

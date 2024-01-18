@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/u-root/u-root/pkg/uroot/test/bar"
+	"github.com/u-root/mkuimage/uroot/test/bar"
 )
 
 var (

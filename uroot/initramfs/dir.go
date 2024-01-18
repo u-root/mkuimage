@@ -9,8 +9,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/u-root/u-root/pkg/cpio"
-	"github.com/u-root/u-root/pkg/ulog"
+	"github.com/u-root/mkuimage/cpio"
+	"github.com/u-root/uio/ulog"
 )
 
 // DirArchiver implements Archiver for a directory.

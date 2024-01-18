@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/u-root/u-root/pkg/cpio"
-	"github.com/u-root/u-root/pkg/uio"
+	"github.com/u-root/mkuimage/cpio"
+	"github.com/u-root/uio/uio"
 )
 
 type ArchiveValidator interface {

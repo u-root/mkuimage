@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/u-root/u-root/pkg/cpio"
+	"github.com/u-root/mkuimage/cpio"
 )
 
 // Files are host files and records to add to the resulting initramfs.
