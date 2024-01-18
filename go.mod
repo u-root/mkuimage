@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/hugelgupf/go-shlex v0.0.0-20200702092117-c80c9d0918fa
 	github.com/u-root/gobusybox/src v0.0.0-20231228173702-b69f654846aa
-	github.com/u-root/uio v0.0.0-20230305220412-3e8cd9d6bf63
+	github.com/u-root/uio v0.0.0-20240118234441-a3c409a6018e
 	golang.org/x/sys v0.16.0
 	golang.org/x/tools v0.17.0
 )
