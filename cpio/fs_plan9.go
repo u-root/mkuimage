@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/u-root/u-root/pkg/ls"
 	"github.com/u-root/u-root/pkg/uio"
 	"github.com/u-root/u-root/pkg/upath"
 )
@@ -155,17 +154,4 @@ func (r *Recorder) GetRecord(path string) (Record, error) {
 // you're doing.
 func NewRecorder() *Recorder {
 	return &Recorder{inumber: 2}
-}
-
-// LSInfoFromRecord converts a Record to be usable with the ls package for
-// listing files.
-func LSInfoFromRecord(rec Record) ls.FileInfo {
-	mode := modeFromLinux(rec.Mode)
-	return ls.FileInfo{
-		Name:  rec.Name,
-		Mode:  mode,
-		UID:   fmt.Sprintf("%d", rec.UID),
-		Size:  int64(rec.FileSize),
-		MTime: time.Unix(int64(rec.MTime), 0).UTC(),
-	}
 }

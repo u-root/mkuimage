@@ -35,8 +35,6 @@ import (
 	"io"
 	"os"
 	"time"
-
-	"github.com/u-root/u-root/pkg/ls"
 )
 
 var (
@@ -59,17 +57,6 @@ type Record struct {
 	RecPos  int64  // Where in the file this record is
 	RecLen  uint64 // How big the record is.
 	FilePos int64  // Where in the CPIO the file's contents are.
-}
-
-// String implements a fmt.Stringer for Record.
-//
-// String returns a string long-formatted like `ls` would format it.
-func (r Record) String() string {
-	s := ls.LongStringer{
-		Human: true,
-		Name:  ls.NameStringer{},
-	}
-	return s.FileString(LSInfoFromRecord(r))
 }
 
 // Info holds metadata about files.

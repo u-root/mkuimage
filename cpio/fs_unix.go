@@ -14,9 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
-	"time"
 
-	"github.com/u-root/u-root/pkg/ls"
 	"github.com/u-root/u-root/pkg/uio"
 	"github.com/u-root/u-root/pkg/upath"
 	"golang.org/x/sys/unix"
@@ -266,30 +264,4 @@ func (r *Recorder) GetRecord(path string) (Record, error) {
 // you're doing.
 func NewRecorder() *Recorder {
 	return &Recorder{make(map[devInode]Info), 2}
-}
-
-// LSInfoFromRecord converts a Record to be usable with the ls package for
-// listing files.
-func LSInfoFromRecord(rec Record) ls.FileInfo {
-	var target string
-
-	mode := modeFromLinux(rec.Mode)
-	if mode&os.ModeType == os.ModeSymlink {
-		if l, err := uio.ReadAll(rec); err != nil {
-			target = err.Error()
-		} else {
-			target = string(l)
-		}
-	}
-
-	return ls.FileInfo{
-		Name:          rec.Name,
-		Mode:          mode,
-		Rdev:          unix.Mkdev(uint32(rec.Rmajor), uint32(rec.Rminor)),
-		UID:           uint32(rec.UID),
-		GID:           uint32(rec.GID),
-		Size:          int64(rec.FileSize),
-		MTime:         time.Unix(int64(rec.MTime), 0).UTC(),
-		SymlinkTarget: target,
-	}
 }
