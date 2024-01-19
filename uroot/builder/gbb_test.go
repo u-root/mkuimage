@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
-	"github.com/u-root/uio/ulog/ulogtest"
 	"github.com/u-root/mkuimage/uroot/initramfs"
+	"github.com/u-root/uio/ulog/ulogtest"
 )
 
 func TestGBBBuild(t *testing.T) {
@@ -19,7 +19,6 @@ func TestGBBBuild(t *testing.T) {
 		Env: golang.Default(golang.DisableCGO()),
 		Packages: []string{
 			"../test/foo",
-			"../../../cmds/core/elvish",
 		},
 		TempDir:   dir,
 		BinaryDir: "bbin",
@@ -32,7 +31,6 @@ func TestGBBBuild(t *testing.T) {
 	}
 
 	mustContain := []string{
-		"bbin/elvish",
 		"bbin/foo",
 		"bbin/bb",
 	}

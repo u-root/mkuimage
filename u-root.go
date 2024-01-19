@@ -349,16 +349,11 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 		//   Import paths of u-root commands; e.g. github.com/u-root/u-root/cmds/* (requires uroot-source)
 		var pkgs []string
 		for _, a := range flag.Args() {
-			p, ok := templates[a]
-			if !ok {
-				if !validateArg(a) {
-					l.Printf("%q is not a valid path, allowed are only existing relative or absolute file paths!", a)
-					continue
-				}
-				pkgs = append(pkgs, a)
+			if !validateArg(a) {
+				l.Printf("%q is not a valid path, allowed are only existing relative or absolute file paths!", a)
 				continue
 			}
-			pkgs = append(pkgs, p...)
+			pkgs = append(pkgs, a)
 		}
 		if len(pkgs) == 0 {
 			pkgs = []string{"github.com/u-root/u-root/cmds/core/*"}

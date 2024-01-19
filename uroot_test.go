@@ -5,7 +5,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"errors"
@@ -17,74 +16,14 @@ import (
 	"sync"
 	"testing"
 
-	gbbgolang "github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
 	"github.com/u-root/mkuimage/testutil"
 	itest "github.com/u-root/mkuimage/uroot/initramfs/test"
-	"github.com/u-root/uio/uio"
 )
 
 var twocmds = []string{
 	"github.com/u-root/u-root/cmds/core/ls",
 	"github.com/u-root/u-root/cmds/core/init",
-}
-
-type noDeadCode struct {
-	Path string
-}
-
-func (v noDeadCode) Validate(a *cpio.Archive) error {
-	// 1. Extract BB binary into a temporary file.
-	delFiles := true
-	bbRecord, ok := a.Get(v.Path)
-	if !ok {
-		return fmt.Errorf("archive does not contain %s, but should", v.Path)
-	}
-	tf, err := os.CreateTemp("", "u-root-temp-bb-")
-	if err != nil {
-		return err
-	}
-	bbData, _ := uio.ReadAll(bbRecord)
-	tf.Write(bbData)
-	tf.Close()
-	defer func() {
-		if delFiles {
-			os.RemoveAll(tf.Name())
-		}
-	}()
-	// 2. Run "go nm" on it and build symbol table.
-	cmd := gbbgolang.Default().GoCmd("tool", "nm", tf.Name())
-	nmOutput, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to run nm: %s %s", err, nmOutput)
-	}
-	symScanner := bufio.NewScanner(bytes.NewBuffer(nmOutput))
-	syms := map[string]bool{}
-	for symScanner.Scan() {
-		line := symScanner.Text()
-		parts := strings.Split(line, " ")
-		if len(parts) == 0 {
-			continue
-		}
-		sym := parts[len(parts)-1]
-		syms[sym] = true
-	}
-	// 3. Check for presence and absence of particular symbols.
-	if !syms["github.com/u-root/u-root/pkg/uroot/test/bar.Bar.UsedInterfaceMethod"] {
-		// Sanity check of the test itself: this method must be in the binary.
-		return fmt.Errorf("expected symbol not found, something is wrong with the build")
-	}
-	if syms["github.com/u-root/u-root/pkg/uroot/test/bar.Bar.UnusedNonInterfaceMethod"] {
-		// Sanity check of the test itself: this method must be in the binary.
-		delFiles = false
-		return fmt.Errorf(
-			"Unused non-interface method has not been eliminated, dead code elimination is not working properly.\n"+
-				"The most likely reason is use of reflect.Value.Method or .MethodByName somewhere "+
-				"(could be a command or vendor dependency, apologies for not being more precise here).\n"+
-				"See https://golang.org/src/cmd/link/internal/ld/deadcode.go for explanation.\n"+
-				"%s contains the resulting binary.\n", tf.Name())
-	}
-	return nil
 }
 
 func TestUrootCmdline(t *testing.T) {
@@ -173,73 +112,98 @@ func TestUrootCmdline(t *testing.T) {
 			},
 		},
 		{
-			name: "dead_code_elimination",
-			args: []string{
-				// Build the world + test symbols, unstripped.
-				// Change default shell to gosh for this test as elvish uses the reflect package
-				"-defaultsh=/bbin/gosh", "-no-strip", "world", "github.com/u-root/u-root/pkg/uroot/test/foo",
-				// These are known to disable DCE and need to be exluded.
-				// elvish uses reflect.Value.Call and is expected to not use DCE.
-				"-github.com/u-root/u-root/cmds/core/elvish",
-			},
-			err: nil,
-			validators: []itest.ArchiveValidator{
-				noDeadCode{Path: "bbin/bb"},
-			},
-		},
-		{
 			name: "hosted mode",
 			args: append([]string{"-base=/dev/null", "-defaultsh=", "-initcmd="}, twocmds...),
 		},
 		{
 			name: "AMD64 build",
 			env:  []string{"GOARCH=amd64"},
-			args: []string{"all"},
+			args: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/elvish",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 		},
 		{
 			name: "MIPS build",
 			env:  []string{"GOARCH=mips"},
-			args: []string{"all"},
+			args: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/elvish",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 		},
 		{
 			name: "MIPSLE build",
 			env:  []string{"GOARCH=mipsle"},
-			args: []string{"all"},
+			args: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/elvish",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 		},
 		{
 			name: "MIPS64 build",
 			env:  []string{"GOARCH=mips64"},
-			args: []string{"all"},
+			args: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/elvish",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 		},
 		{
 			name: "MIPS64LE build",
 			env:  []string{"GOARCH=mips64le"},
-			args: []string{"all"},
+			args: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/elvish",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 		},
 		{
 			name: "ARM7 build",
 			env:  []string{"GOARCH=arm", "GOARM=7"},
-			args: []string{"all"},
+			args: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/elvish",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 		},
 		{
 			name: "ARM64 build",
 			env:  []string{"GOARCH=arm64"},
-			args: []string{"all"},
+			args: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/elvish",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 		},
 		{
 			name: "386 (32 bit) build",
 			env:  []string{"GOARCH=386"},
-			args: []string{"all"},
+			args: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/elvish",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 		},
 		{
 			name: "Power 64bit build",
 			env:  []string{"GOARCH=ppc64le"},
-			args: []string{"all"},
+			args: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/elvish",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 		},
 		{
 			name: "RISCV 64bit build",
 			env:  []string{"GOARCH=riscv64"},
-			args: []string{"all"},
+			args: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/elvish",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 		},
 	}
 	var bbTests []testCase

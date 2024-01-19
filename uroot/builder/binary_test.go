@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
-	"github.com/u-root/uio/ulog/ulogtest"
 	"github.com/u-root/mkuimage/uroot/initramfs"
+	"github.com/u-root/uio/ulog/ulogtest"
 )
 
 func TestBinaryBuild(t *testing.T) {
@@ -19,7 +19,7 @@ func TestBinaryBuild(t *testing.T) {
 		Env: golang.Default(golang.DisableCGO()),
 		Packages: []string{
 			"../test/foo",
-			"../../../cmds/core/elvish",
+			"github.com/u-root/u-root/cmds/core/elvish",
 			"github.com/u-root/u-root/cmds/core/init",
 			"cmd/test2json",
 		},
