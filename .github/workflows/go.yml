@@ -34,7 +34,12 @@ jobs:
         run: go build -v ./...
 
       - name: Test
-        run: go test -v -covermode atomic -coverpkg ./... -coverprofile cover.out ./...
+        run: |
+          mkdir cmd/mkuimage/cover
+          GOCOVERDIR=cover go test -v -covermode atomic -coverpkg ./... -coverprofile cover.out ./...
+
+      - name: Convert coverage data
+        run: go tool covdata textfmt -i=cmd/mkuimage/cover -o cover2.out
 
       - uses: codecov/codecov-action@v4-beta
         env:

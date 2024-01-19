@@ -310,7 +310,7 @@ func buildIt(t *testing.T, args, env []string, want error) (*os.File, []byte, er
 	// Build the stuff.
 	// NoTrimPath ensures that the right Go version is used when running the tests.
 	goEnv := golang.Default()
-	if err := goEnv.BuildDir(wd, execPath, &golang.BuildOpts{NoStrip: true, NoTrimPath: true}); err != nil {
+	if err := goEnv.BuildDir(wd, execPath, &golang.BuildOpts{NoStrip: true, NoTrimPath: true, ExtraArgs: []string{"-cover"}}); err != nil {
 		return nil, nil, err
 	}
 
