@@ -19,8 +19,8 @@ import (
 	"github.com/u-root/gobusybox/src/pkg/bb/findpkg"
 	gbbgolang "github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
+	"github.com/u-root/mkuimage/fileflag"
 	"github.com/u-root/mkuimage/ldd"
-	"github.com/u-root/mkuimage/uflag"
 	"github.com/u-root/mkuimage/uroot/builder"
 	"github.com/u-root/mkuimage/uroot/initramfs"
 	"github.com/u-root/uio/ulog"
@@ -297,7 +297,7 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 		return fmt.Errorf("%v: specify -uinitcmd=\"\" to ignore this error and build without a uinit", err)
 	}
 	if len(opts.UinitArgs) > 0 {
-		if err := archive.AddRecord(cpio.StaticFile("etc/uinit.flags", uflag.ArgvToFile(opts.UinitArgs), 0o444)); err != nil {
+		if err := archive.AddRecord(cpio.StaticFile("etc/uinit.flags", fileflag.ArgvToFile(opts.UinitArgs), 0o444)); err != nil {
 			return fmt.Errorf("%v: could not add uinit arguments from UinitArgs (-uinitcmd) to initramfs", err)
 		}
 	}
