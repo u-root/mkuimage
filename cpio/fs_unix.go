@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/u-root/mkuimage/upath"
+	"github.com/u-root/mkuimage/cpio/internal/upath"
 	"github.com/u-root/uio/uio"
 	"golang.org/x/sys/unix"
 )
