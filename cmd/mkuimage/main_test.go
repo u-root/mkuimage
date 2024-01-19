@@ -11,13 +11,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
-	"github.com/u-root/mkuimage/testutil"
 	itest "github.com/u-root/mkuimage/uroot/initramfs/test"
 )
 
@@ -295,30 +296,43 @@ func TestUrootCmdline(t *testing.T) {
 
 func buildIt(t *testing.T, args, env []string, want error) (*os.File, []byte, error) {
 	t.Helper()
-	f, err := os.CreateTemp("", "u-root-")
+	initramfs, err := os.CreateTemp(t.TempDir(), "u-root-")
 	if err != nil {
 		return nil, nil, err
 	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	execPath := filepath.Join(t.TempDir(), "binary")
+	// Build the stuff.
+	// NoTrimPath ensures that the right Go version is used when running the tests.
+	goEnv := golang.Default()
+	if err := goEnv.BuildDir(wd, execPath, &golang.BuildOpts{NoStrip: true, NoTrimPath: true}); err != nil {
+		return nil, nil, err
+	}
+
 	// Use the u-root command outside of the $GOPATH tree to make sure it
 	// still works.
-	arg := append([]string{"-o", f.Name()}, args...)
-	c := testutil.Command(t, arg...)
-	t.Logf("Commandline: %v u-root %v", strings.Join(env, " "), strings.Join(arg, " "))
-	c.Env = append(c.Env, env...)
+	args = append([]string{"-o", initramfs.Name()}, args...)
+	t.Logf("Commandline: %v u-root %v", strings.Join(env, " "), strings.Join(args, " "))
+
+	c := exec.Command(execPath, args...)
+	c.Env = append(os.Environ(), env...)
+	c.Env = append(c.Env, goEnv.Env()...)
 	if out, err := c.CombinedOutput(); err != want {
 		return nil, nil, fmt.Errorf("Error: %v\nOutput:\n%s", err, out)
 	} else if err != nil {
-		h1 := sha256.New()
-		if _, err := io.Copy(h1, f); err != nil {
-			return nil, nil, err
-		}
-		return f, h1.Sum(nil), nil
+		return initramfs, nil, err
 	}
-	return f, nil, nil
-}
 
-func TestMain(m *testing.M) {
-	testutil.Run(m, main)
+	h1 := sha256.New()
+	if _, err := io.Copy(h1, initramfs); err != nil {
+		return nil, nil, err
+	}
+	return initramfs, h1.Sum(nil), nil
 }
 
 func TestCheckArgs(t *testing.T) {
