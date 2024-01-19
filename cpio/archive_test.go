@@ -23,7 +23,6 @@ func FuzzWriteReadInMemArchive(f *testing.F) {
 		recs := []Record{}
 		var i uint64
 		for i = 0; i < fileCount; i++ {
-
 			recs = append(recs, StaticRecord(content, Info{
 				Ino:      ino | i,
 				Mode:     syscall.S_IFREG | mode | i,
@@ -40,12 +39,14 @@ func FuzzWriteReadInMemArchive(f *testing.F) {
 			}))
 		}
 
-		arch := ArchiveFromRecords(recs)
-		archReader := arch.Reader()
+		arch, err := ArchiveFromRecords(recs)
+		if err != nil {
+			t.Fatal(err)
+		}
 
+		archReader := arch.Reader()
 		for _, rec := range recs {
 			readRec, err := archReader.ReadRecord()
-
 			if err != nil {
 				t.Fatalf("failed to read record from archive")
 			}
@@ -53,11 +54,9 @@ func FuzzWriteReadInMemArchive(f *testing.F) {
 			if !Equal(rec, readRec) {
 				t.Fatalf("records not equal: %v %v", rec, readRec)
 			}
-
 			if !arch.Contains(rec) {
 				t.Fatalf("record not in archive %v %#v", rec, arch)
 			}
 		}
-
 	})
 }

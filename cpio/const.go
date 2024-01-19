@@ -8,6 +8,7 @@ package cpio
 // But we are unable to import the unix package when plan 9 is enabled,
 // so lucky us, the numbers have been the same for half a century.
 // It is ok to just define them.
+// nolint
 const (
 	S_IEXEC  = 0x40
 	S_IFBLK  = 0x6000

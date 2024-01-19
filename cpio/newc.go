@@ -56,7 +56,7 @@ func headerFromInfo(i Info) header {
 	return h
 }
 
-func (h header) Info() Info {
+func (h header) info() Info {
 	var i Info
 	i.Ino = uint64(h.Ino)
 	i.Mode = uint64(h.Mode)
@@ -307,7 +307,7 @@ func (r *reader) ReadRecord() (Record, error) {
 		return Record{}, err
 	}
 
-	info := hdr.Info()
+	info := hdr.info()
 	info.Name = Normalize(string(nameBuf[:hdr.NameLength-1]))
 
 	recLen := uint64(r.pos - recPos)

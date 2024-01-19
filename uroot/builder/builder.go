@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package builder has methods for building many Go commands into an initramfs
+// archive.
 package builder
 
 import (
-	gbbgolang "github.com/u-root/gobusybox/src/pkg/golang"
-	"github.com/u-root/uio/ulog"
+	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/uroot/initramfs"
+	"github.com/u-root/uio/ulog"
 )
 
 var (
@@ -20,11 +22,11 @@ var (
 // Opts are options passed to the Builder.Build function.
 type Opts struct {
 	// Env is the Go compiler environment.
-	Env *gbbgolang.Environ
+	Env *golang.Environ
 
 	// Build options for building go binaries. Ultimate this holds all the
 	// args that end up being passed to `go build`.
-	BuildOpts *gbbgolang.BuildOpts
+	BuildOpts *golang.BuildOpts
 
 	// Packages are the Go packages to compile.
 	//

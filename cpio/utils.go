@@ -205,10 +205,7 @@ func Passthrough(r RecordReader, w RecordWriter) error {
 	if err := Concat(w, r, nil); err != nil {
 		return err
 	}
-	if err := WriteTrailer(w); err != nil {
-		return err
-	}
-	return nil
+	return WriteTrailer(w)
 }
 
 // WriteTrailer writes the trailer record.

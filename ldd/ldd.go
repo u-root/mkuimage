@@ -5,7 +5,7 @@
 //go:build freebsd || linux || darwin
 // +build freebsd linux darwin
 
-// ldd returns library dependencies of an executable.
+// Package ldd returns library dependencies of an executable.
 //
 // The way this is done on GNU-based systems is interesting. For each ELF, one
 // finds the .interp section. If there is no interpreter there's not much to

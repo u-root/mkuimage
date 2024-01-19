@@ -21,9 +21,9 @@ import (
 	"github.com/u-root/mkuimage/cpio"
 	"github.com/u-root/mkuimage/ldd"
 	"github.com/u-root/mkuimage/uflag"
-	"github.com/u-root/uio/ulog"
 	"github.com/u-root/mkuimage/uroot/builder"
 	"github.com/u-root/mkuimage/uroot/initramfs"
+	"github.com/u-root/uio/ulog"
 )
 
 // These constants are used in DefaultRamfs.
@@ -37,13 +37,13 @@ const (
 	nameserver = "nameserver 8.8.8.8\n"
 )
 
-// DefaultRamRamfs returns a cpio.Archive for the target OS.
+// DefaultRamfs returns a cpio.Archive for the target OS.
 // If an OS is not known it will return a reasonable u-root specific
 // default.
 func DefaultRamfs() *cpio.Archive {
 	switch gbbgolang.Default().GOOS {
 	case "linux":
-		return cpio.ArchiveFromRecords([]cpio.Record{
+		a, _ := cpio.ArchiveFromRecords([]cpio.Record{
 			cpio.Directory("bin", 0o755),
 			cpio.Directory("dev", 0o755),
 			cpio.Directory("env", 0o755),
@@ -65,11 +65,13 @@ func DefaultRamfs() *cpio.Archive {
 			cpio.StaticFile("etc/resolv.conf", nameserver, 0o644),
 			cpio.StaticFile("etc/localtime", gmt0, 0o644),
 		})
+		return a
 	default:
-		return cpio.ArchiveFromRecords([]cpio.Record{
+		a, _ := cpio.ArchiveFromRecords([]cpio.Record{
 			cpio.Directory("ubin", 0o755),
 			cpio.Directory("bbin", 0o755),
 		})
+		return a
 	}
 }
 
@@ -423,7 +425,7 @@ func ParseExtraFiles(logger ulog.Logger, archive *initramfs.Files, extraFiles []
 				// step. The file will still be included from above.
 				f, err := elf.Open(name)
 				if err != nil {
-					return nil
+					return nil //nolint:nilerr
 				}
 				if err = f.Close(); err != nil {
 					logger.Printf("WARNING: Closing ELF file %q: %v", name, err)
@@ -453,10 +455,11 @@ func (o *Opts) AddCommands(c ...Commands) {
 	o.Commands = append(o.Commands, c...)
 }
 
+// AddBusyBoxCommands adds Go commands to the busybox build.
 func (o *Opts) AddBusyBoxCommands(pkgs ...string) {
 	for i, cmds := range o.Commands {
 		if cmds.Builder == builder.BusyBox {
-			o.Commands[i].Packages = append(cmds.Packages, pkgs...)
+			o.Commands[i].Packages = append(o.Commands[i].Packages, pkgs...)
 			return
 		}
 	}

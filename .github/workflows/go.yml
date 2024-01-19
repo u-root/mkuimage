@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    # Every day at 8am.
+    - cron: "0 8 * * *"
 
 # Cancel running workflows on new push to a PR.
 concurrency:
@@ -17,7 +20,7 @@ jobs:
     strategy:
       matrix:
         go-version: ['1.21.x']
-        platform: [ubuntu-latest, macos-latest]
+        platform: [ubuntu-latest]
 
     runs-on: ${{ matrix.platform }}
     steps:

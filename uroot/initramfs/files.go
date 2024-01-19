@@ -177,7 +177,7 @@ func (af *Files) addParent(name string) {
 		return
 	}
 	if !af.Contains(parent) {
-		af.AddRecord(cpio.Directory(parent, 0o755))
+		_ = af.AddRecord(cpio.Directory(parent, 0o755))
 	}
 	af.addParent(parent)
 }

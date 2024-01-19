@@ -56,7 +56,7 @@ func TestUrootCmdline(t *testing.T) {
 			env:  []string{"GO111MODULE=off"},
 			err:  nil,
 			validators: []itest.ArchiveValidator{
-				itest.HasFile{"bin/bash"},
+				itest.HasFile{Path: "bin/bash"},
 			},
 		},
 		{
@@ -65,8 +65,8 @@ func TestUrootCmdline(t *testing.T) {
 			env:  []string{"GO111MODULE=off"},
 			err:  nil,
 			validators: []itest.ArchiveValidator{
-				itest.HasFile{"/bin/foo"},
-				itest.HasFile{"/bin/bar"},
+				itest.HasFile{Path: "/bin/foo"},
+				itest.HasFile{Path: "/bin/bar"},
 			},
 		},
 		{
@@ -74,9 +74,9 @@ func TestUrootCmdline(t *testing.T) {
 			args: []string{"-nocmd", "-files=/bin/bash", "-files=/bin/ls", fmt.Sprintf("-files=%s", samplef.Name())},
 			env:  []string{"GO111MODULE=off"},
 			validators: []itest.ArchiveValidator{
-				itest.HasFile{"bin/bash"},
-				itest.HasFile{"bin/ls"},
-				itest.HasFile{samplef.Name()},
+				itest.HasFile{Path: "bin/bash"},
+				itest.HasFile{Path: "bin/ls"},
+				itest.HasFile{Path: samplef.Name()},
 			},
 		},
 		{
@@ -84,7 +84,7 @@ func TestUrootCmdline(t *testing.T) {
 			args: []string{"-nocmd", "-files=/bin/bash:bin/bush"},
 			env:  []string{"GO111MODULE=off"},
 			validators: []itest.ArchiveValidator{
-				itest.HasFile{"bin/bush"},
+				itest.HasFile{Path: "bin/bush"},
 			},
 		},
 		{
@@ -92,8 +92,8 @@ func TestUrootCmdline(t *testing.T) {
 			args: []string{"-nocmd", "-files=/bin/bash:bin/bash", "-uinitcmd=/bin/bash"},
 			env:  []string{"GO111MODULE=off"},
 			validators: []itest.ArchiveValidator{
-				itest.HasFile{"bin/bash"},
-				itest.HasRecord{cpio.Symlink("bin/uinit", "bash")},
+				itest.HasFile{Path: "bin/bash"},
+				itest.HasRecord{R: cpio.Symlink("bin/uinit", "bash")},
 			},
 		},
 	}
@@ -104,7 +104,7 @@ func TestUrootCmdline(t *testing.T) {
 			args: []string{"-uinitcmd=echo foobar fuzz", "-defaultsh=", "github.com/u-root/u-root/cmds/core/init", "github.com/u-root/u-root/cmds/core/echo"},
 			err:  nil,
 			validators: []itest.ArchiveValidator{
-				itest.HasRecord{cpio.Symlink("bin/uinit", "../bbin/echo")},
+				itest.HasRecord{R: cpio.Symlink("bin/uinit", "../bbin/echo")},
 				itest.HasContent{
 					Path:    "etc/uinit.flags",
 					Content: "\"foobar\"\n\"fuzz\"",
@@ -209,7 +209,7 @@ func TestUrootCmdline(t *testing.T) {
 	var bbTests []testCase
 	for _, test := range bareTests {
 		gbbTest := test
-		gbbTest.name = gbbTest.name + " gbb-gomodule"
+		gbbTest.name += " gbb-gomodule"
 		gbbTest.args = append([]string{"-build=gbb"}, gbbTest.args...)
 		gbbTest.env = append(gbbTest.env, "GO111MODULE=on")
 
@@ -289,6 +289,7 @@ func TestUrootCmdline(t *testing.T) {
 }
 
 func buildIt(t *testing.T, args, env []string, want error) (*os.File, []byte, error) {
+	t.Helper()
 	f, err := os.CreateTemp("", "u-root-")
 	if err != nil {
 		return nil, nil, err
@@ -321,9 +322,9 @@ func TestCheckArgs(t *testing.T) {
 		args []string
 		err  error
 	}{
-		{"-files is only arg", []string{"-files"}, ErrEmptyFilesArg},
-		{"-files followed by -files", []string{"-files", "-files"}, ErrEmptyFilesArg},
-		{"-files followed by any other switch", []string{"-files", "-abc"}, ErrEmptyFilesArg},
+		{"-files is only arg", []string{"-files"}, errEmptyFilesArg},
+		{"-files followed by -files", []string{"-files", "-files"}, errEmptyFilesArg},
+		{"-files followed by any other switch", []string{"-files", "-abc"}, errEmptyFilesArg},
 		{"no args", []string{}, nil},
 		{"u-root alone", []string{"u-root"}, nil},
 		{"u-root with -files and other args", []string{"u-root", "-files", "/bin/bash", "core"}, nil},

@@ -121,33 +121,3 @@ func Format(name string) (RecordFormat, error) {
 	}
 	return op, nil
 }
-
-func modeFromLinux(mode uint64) os.FileMode {
-	m := os.FileMode(mode & 0o777)
-	switch mode & S_IFMT {
-	case S_IFBLK:
-		m |= os.ModeDevice
-	case S_IFCHR:
-		m |= os.ModeDevice | os.ModeCharDevice
-	case S_IFDIR:
-		m |= os.ModeDir
-	case S_IFIFO:
-		m |= os.ModeNamedPipe
-	case S_IFLNK:
-		m |= os.ModeSymlink
-	case S_IFREG:
-		// nothing to do
-	case S_IFSOCK:
-		m |= os.ModeSocket
-	}
-	if mode&S_ISGID != 0 {
-		m |= os.ModeSetgid
-	}
-	if mode&S_ISUID != 0 {
-		m |= os.ModeSetuid
-	}
-	if mode&S_ISVTX != 0 {
-		m |= os.ModeSticky
-	}
-	return m
-}

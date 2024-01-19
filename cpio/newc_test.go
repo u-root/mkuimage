@@ -17,6 +17,7 @@ import (
 	"github.com/u-root/uio/uio"
 )
 
+//nolint:godot
 /*
 drwxrwxr-x   9 rminnich rminnich        0 Jan 22 22:18 .
 drwxr-xr-x   2 root     root            0 Jan 22 22:18 etc
@@ -576,7 +577,7 @@ func TestReproducible(t *testing.T) {
 		t.Errorf("Could not write record %q: %v", rec[0].Name, err)
 	}
 
-	if reflect.DeepEqual(b1.Bytes()[:], b2.Bytes()[:]) {
+	if reflect.DeepEqual(b1.Bytes(), b2.Bytes()) {
 		t.Error("Reproducible: compared as same, wanted different")
 	}
 
@@ -585,7 +586,7 @@ func TestReproducible(t *testing.T) {
 
 	b1 = &bytes.Buffer{}
 	w = Newc.Writer(b1)
-	rec[0].ReaderAt = bytes.NewReader([]byte(contents))
+	rec[0].ReaderAt = bytes.NewReader(contents)
 	MakeAllReproducible(rec)
 	if err := WriteRecords(w, rec); err != nil {
 		t.Errorf("Could not write record %q: %v", rec[0].Name, err)
@@ -594,16 +595,16 @@ func TestReproducible(t *testing.T) {
 	b2 = &bytes.Buffer{}
 	w = Newc.Writer(b2)
 	rec[0].MTime++
-	rec[0].ReaderAt = bytes.NewReader([]byte(contents))
+	rec[0].ReaderAt = bytes.NewReader(contents)
 	MakeAllReproducible(rec)
 	if err := WriteRecords(w, rec); err != nil {
 		t.Errorf("Could not write record %q: %v", rec[0].Name, err)
 	}
 
 	if len(b1.Bytes()) != len(b2.Bytes()) {
-		t.Fatalf("Reproducible \n%v,\n%v: len is different, wanted same", b1.Bytes()[:], b2.Bytes()[:])
+		t.Fatalf("Reproducible \n%v,\n%v: len is different, wanted same", b1.Bytes(), b2.Bytes())
 	}
-	if !reflect.DeepEqual(b1.Bytes()[:], b2.Bytes()[:]) {
+	if !reflect.DeepEqual(b1.Bytes(), b2.Bytes()) {
 		t.Error("Reproducible: compared different, wanted same")
 		for i := range b1.Bytes() {
 			a := b1.Bytes()[i]
