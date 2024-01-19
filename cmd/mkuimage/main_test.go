@@ -225,6 +225,7 @@ func TestUrootCmdline(t *testing.T) {
 				sum1, sum2 []byte
 				errs       [2]error
 				wg         = &sync.WaitGroup{}
+				removeMu   sync.Mutex
 				remove     []string
 			)
 
@@ -243,7 +244,9 @@ func TestUrootCmdline(t *testing.T) {
 					return
 				}
 
+				removeMu.Lock()
 				remove = append(remove, f1.Name())
+				removeMu.Unlock()
 				for _, v := range tt.validators {
 					if err := v.Validate(a); err != nil {
 						t.Errorf("validator failed: %v / archive:\n%s", err, a)
@@ -259,7 +262,9 @@ func TestUrootCmdline(t *testing.T) {
 					errs[1] = err
 					return
 				}
+				removeMu.Lock()
 				remove = append(remove, f2.Name())
+				removeMu.Unlock()
 			}()
 
 			wg.Wait()
