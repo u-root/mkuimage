@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"sync"
 
-	gbbgolang "github.com/u-root/gobusybox/src/pkg/golang"
-	"github.com/u-root/uio/ulog"
+	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/uroot/initramfs"
+	"github.com/u-root/uio/ulog"
 	"golang.org/x/tools/go/packages"
 )
 
-func dirFor(env *gbbgolang.Environ, pkg string) (string, error) {
+func dirFor(env *golang.Environ, pkg string) (string, error) {
 	pkgs, err := env.Lookup(packages.NeedName|packages.NeedFiles, "", pkg)
 	if err != nil {
 		return "", fmt.Errorf("failed to look up package %q: %v", pkg, err)

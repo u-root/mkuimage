@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"github.com/u-root/gobusybox/src/pkg/bb/findpkg"
-	gbbgolang "github.com/u-root/gobusybox/src/pkg/golang"
+	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
 	"github.com/u-root/mkuimage/fileflag"
 	"github.com/u-root/mkuimage/ldd"
@@ -41,7 +41,7 @@ const (
 // If an OS is not known it will return a reasonable u-root specific
 // default.
 func DefaultRamfs() *cpio.Archive {
-	switch gbbgolang.Default().GOOS {
+	switch golang.Default().GOOS {
 	case "linux":
 		a, _ := cpio.ArchiveFromRecords([]cpio.Record{
 			cpio.Directory("bin", 0o755),
@@ -120,8 +120,8 @@ func (c Commands) TargetDir() string {
 type Opts struct {
 	// Env is the Golang build environment (GOOS, GOARCH, etc).
 	//
-	// If nil, gbbgolang.Default is used.
-	Env *gbbgolang.Environ
+	// If nil, golang.Default is used.
+	Env *golang.Environ
 
 	// Commands specify packages to build using a specific builder.
 	//
@@ -227,7 +227,7 @@ type Opts struct {
 
 	// Build options for building go binaries. Ultimate this holds all the
 	// args that end up being passed to `go build`.
-	BuildOpts *gbbgolang.BuildOpts
+	BuildOpts *golang.BuildOpts
 }
 
 // CreateInitramfs creates an initramfs built to opts' specifications.
@@ -239,12 +239,12 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 		return fmt.Errorf("must give output file")
 	}
 
-	env := gbbgolang.Default()
+	env := golang.Default()
 	if opts.Env != nil {
 		env = opts.Env
 	}
 	if opts.BuildOpts == nil {
-		opts.BuildOpts = &gbbgolang.BuildOpts{}
+		opts.BuildOpts = &golang.BuildOpts{}
 	}
 
 	files := initramfs.NewFiles()
