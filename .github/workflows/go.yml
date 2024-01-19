@@ -36,9 +36,6 @@ jobs:
       - name: Test
         run: go test -v -covermode atomic -coverpkg ./... -coverprofile cover.out ./...
 
-      - name: Race
-        run: go test -race -timeout 15m -v ./...
-
       - uses: codecov/codecov-action@v4-beta
         env:
           CODECOV_TOKEN: '804457b0-03f8-4cf6-bc99-eaf43399177b'
@@ -46,3 +43,21 @@ jobs:
           flags: ${{ matrix.platform }}-unit
           fail_ci_if_error: true
           verbose: true
+
+  race:
+    name: Race test
+    strategy:
+      matrix:
+        go-version: ['1.21.x']
+        platform: [ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Race
+        run: go test -race -v ./...
