@@ -10,12 +10,14 @@ package uroot
 
 import (
 	"debug/elf"
+	"flag"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/hugelgupf/go-shlex"
 	"github.com/u-root/gobusybox/src/pkg/bb/findpkg"
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
@@ -73,6 +75,48 @@ func DefaultRamfs() *cpio.Archive {
 		})
 		return a
 	}
+}
+
+// CommandFlags are flags related to Go commands to be built by mkuimage.
+type CommandFlags struct {
+	NoCommands bool
+	Builder    string
+	ShellBang  bool
+}
+
+// RegisterFlags registers flags related to Go commands being built.
+func (c *CommandFlags) RegisterFlags(f *flag.FlagSet) {
+	f.StringVar(&c.Builder, "build", "gbb", "u-root build format (e.g. bb/gbb or binary).")
+	f.BoolVar(&c.NoCommands, "nocmd", c.NoCommands, "Build no Go commands; initramfs only")
+	f.BoolVar(&c.ShellBang, "shellbang", c.ShellBang, "Use #! instead of symlinks for busybox")
+}
+
+// Commands turns the flag values into Commands.
+func (c *CommandFlags) Commands(packages ...string) ([]Commands, error) {
+	if c.NoCommands {
+		return nil, nil
+	}
+
+	var b builder.Builder
+	switch c.Builder {
+	case "bb", "gbb":
+		b = builder.GBBBuilder{ShellBang: c.ShellBang}
+	case "binary":
+		b = builder.BinaryBuilder{}
+	case "source":
+		return nil, fmt.Errorf("source mode has been deprecated")
+	default:
+		return nil, fmt.Errorf("could not find builder %q", c.Builder)
+	}
+
+	// The command-line tool only allows specifying one build mode
+	// right now.
+	return []Commands{
+		Commands{
+			Builder:  b,
+			Packages: packages,
+		},
+	}, nil
 }
 
 // Commands specifies a list of Golang packages to build with a builder, e.g.
@@ -153,7 +197,8 @@ type Opts struct {
 	UrootSource string
 
 	// TempDir is a temporary directory for builders to store files in.
-	TempDir string
+	TempDir     string
+	KeepTempDir bool
 
 	// ExtraFiles are files to add to the archive in addition to the Go
 	// packages.
@@ -178,12 +223,17 @@ type Opts struct {
 	// will misbehave.
 	SkipLDD bool
 
+	// ArchiveFormat is the format of OutputFile and BaseArchive.
+	//
+	// Supported: cpio, dir
+	ArchiveFormat initramfs.ArchiveFormat
+
 	// OutputFile is the archive output file.
-	OutputFile initramfs.Writer
+	OutputFile string
 
 	// BaseArchive is an existing initramfs to include in the resulting
 	// initramfs.
-	BaseArchive initramfs.Reader
+	BaseArchive string
 
 	// UseExistingInit determines whether the existing init from
 	// BaseArchive should be used.
@@ -230,13 +280,123 @@ type Opts struct {
 	BuildOpts *golang.BuildOpts
 }
 
+// argvFlag splits a "./foo -bar" flag into argv0=./foo and args=[]string{-bar}.
+type argvFlag struct {
+	argv0 *string
+	args  *[]string
+}
+
+func (a *argvFlag) String() string {
+	return fmt.Sprintf("%s %s", *a.argv0, strings.Join(*a.args, " "))
+}
+
+// Set implements flag.Value.Set.
+func (a *argvFlag) Set(value string) error {
+	args := shlex.Split(value)
+	if len(args) == 0 {
+		*a.argv0 = ""
+		*a.args = nil
+	}
+	if len(args) > 0 {
+		*a.argv0 = args[0]
+	}
+	if len(args) > 1 {
+		*a.args = args[1:]
+	}
+	return nil
+}
+
+// multiStringFlag is used for flags that support multiple invocations, e.g. -files.
+type multiStringFlag []string
+
+func (m *multiStringFlag) String() string {
+	return fmt.Sprint(*m)
+}
+
+// Set implements flag.Value.Set.
+func (m *multiStringFlag) Set(value string) error {
+	*m = append(*m, value)
+	return nil
+}
+
+func (o *Opts) RegisterFlags(f *flag.FlagSet) {
+	f.StringVar(&o.TempDir, "tmp-dir", "", "Temporary directory to build binary and archive in. Deleted after build if --keep-tmp-dir is not set.")
+	f.BoolVar(&o.KeepTempDir, "keep-tmp-dir", o.KeepTempDir, "Keep temporary directory after build")
+	f.BoolVar(&o.UseExistingInit, "useinit", o.UseExistingInit, "Use existing init from base archive (only if --base was specified).")
+	f.BoolVar(&o.UseExistingInit, "use-init", o.UseExistingInit, "Use existing init from base archive (only if --base was specified).")
+	f.StringVar(&o.InitCmd, "initcmd", o.InitCmd, "Symlink target for /init. Can be an absolute path or a Go command name. Use initcmd=\"\" if you don't want the symlink.")
+	uinit := &argvFlag{
+		argv0: &o.UinitCmd,
+		args:  &o.UinitArgs,
+	}
+	f.Var(uinit, "uinitcmd", "Symlink target and arguments for /bin/uinit. Can be an absolute path or a Go command name, followed by command-line args. Use uinitcmd=\"\" if you don't want the symlink. E.g. -uinitcmd=\"echo foobar\"")
+	f.StringVar(&o.DefaultShell, "defaultsh", o.DefaultShell, "Default shell. Can be an absolute path or a Go command name. Use defaultsh=\"\" if you don't want the symlink.")
+	f.StringVar(&o.UrootSource, "uroot-source", o.UrootSource, "Path to the locally checked out u-root source tree in case commands from there are desired.")
+	f.Var((*multiStringFlag)(&o.ExtraFiles), "files", "Additional files, directories, and binaries (with their ldd dependencies) to add to archive. Can be specified multiple times.")
+	f.StringVar(&o.BaseArchive, "base", o.BaseArchive, "Base archive to add files to. By default, this is a couple of directories like /bin, /etc, etc. Has a default internally supplied set of files; use base=/dev/null if you don't want any base files.")
+	f.Var(&o.ArchiveFormat, "format", "Archival input (for -base) and output (for -o) format.")
+	f.StringVar(&o.OutputFile, "o", o.OutputFile, "Path to output initramfs file.")
+
+	if o.BuildOpts == nil {
+		o.BuildOpts = &golang.BuildOpts{}
+	}
+	o.BuildOpts.RegisterFlags(flag.CommandLine)
+
+	if o.Env == nil {
+		o.Env = golang.Default()
+	}
+	o.Env.RegisterFlags(flag.CommandLine)
+}
+
 // CreateInitramfs creates an initramfs built to opts' specifications.
 func CreateInitramfs(logger ulog.Logger, opts Opts) error {
-	if _, err := os.Stat(opts.TempDir); os.IsNotExist(err) {
-		return fmt.Errorf("temp dir %q must exist: %v", opts.TempDir, err)
+	keepTmpDir := opts.KeepTempDir
+	if opts.TempDir == "" {
+		tempDir, err := os.MkdirTemp("", "u-root")
+		if err != nil {
+			return err
+		}
+		opts.TempDir = tempDir
+		defer func() {
+			if !keepTmpDir {
+				os.RemoveAll(tempDir)
+			}
+		}()
+	} else if _, err := os.Stat(opts.TempDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(opts.TempDir, 0o755); err != nil {
+			return fmt.Errorf("temporary directory %q did not exist; tried to mkdir but failed: %v", opts.TempDir, err)
+		}
+	} else if err != nil {
+		return err
 	}
-	if opts.OutputFile == nil {
-		return fmt.Errorf("must give output file")
+
+	if opts.OutputFile == "" {
+		return fmt.Errorf("must specify output file")
+	}
+	archiver, err := initramfs.GetArchiver(opts.ArchiveFormat)
+	if err != nil {
+		return err
+	}
+
+	// Open the target initramfs file.
+	if opts.OutputFile == "" {
+		return fmt.Errorf("must specify output file")
+	}
+	w, err := archiver.OpenWriter(logger, opts.OutputFile)
+	if err != nil {
+		return err
+	}
+
+	var baseFile initramfs.Reader
+	if opts.BaseArchive != "" {
+		bf, err := os.Open(opts.BaseArchive)
+		if err != nil {
+			return err
+		}
+		defer bf.Close()
+		baseFile = archiver.Reader(bf)
+	} else {
+		baseFile = DefaultRamfs().Reader()
 	}
 
 	env := golang.Default()
@@ -279,6 +439,8 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 			BinaryDir: cmds.TargetDir(),
 		}
 		if err := cmds.Builder.Build(logger, files, bOpts); err != nil {
+			// Keep the temp dir if builders fail.
+			keepTmpDir = true
 			return fmt.Errorf("error building: %v", err)
 		}
 	}
@@ -286,8 +448,8 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 	// Open the target initramfs file.
 	archive := &initramfs.Opts{
 		Files:           files,
-		OutputFile:      opts.OutputFile,
-		BaseArchive:     opts.BaseArchive,
+		OutputFile:      w,
+		BaseArchive:     baseFile,
 		UseExistingInit: opts.UseExistingInit,
 	}
 	if err := ParseExtraFiles(logger, archive.Files, opts.ExtraFiles, !opts.SkipLDD); err != nil {

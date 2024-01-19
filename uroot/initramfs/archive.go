@@ -8,10 +8,38 @@ package initramfs
 import (
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/u-root/mkuimage/cpio"
 	"github.com/u-root/uio/ulog"
 )
+
+// ArchiveFormat are the valid flag values selecting supported archive formats.
+type ArchiveFormat string
+
+// Supported formats.
+const (
+	FormatCPIO ArchiveFormat = "cpio"
+	FormatDir  ArchiveFormat = "dir"
+)
+
+var supportedFormats = []ArchiveFormat{
+	FormatCPIO,
+	FormatDir,
+}
+
+func (a *ArchiveFormat) String() string {
+	return string(*a)
+}
+
+// Set implements flag.Value.Set.
+func (a *ArchiveFormat) Set(value string) error {
+	if !slices.Contains(supportedFormats, ArchiveFormat(value)) {
+		return fmt.Errorf("must specify valid archive format, one of %v", supportedFormats)
+	}
+	*a = ArchiveFormat(value)
+	return nil
+}
 
 var (
 	// CPIO creates files in a CPIO file.
@@ -26,9 +54,9 @@ var (
 	//
 	// - cpio: writes the initramfs to a cpio.
 	// - dir:  writes the initramfs relative to a specified directory.
-	Archivers = map[string]Archiver{
-		"cpio": CPIO,
-		"dir":  Dir,
+	Archivers = map[ArchiveFormat]Archiver{
+		FormatCPIO: CPIO,
+		FormatDir:  Dir,
 	}
 )
 
@@ -45,7 +73,7 @@ type Archiver interface {
 // GetArchiver finds a registered initramfs archiver by name.
 //
 // Good to use with command-line arguments.
-func GetArchiver(name string) (Archiver, error) {
+func GetArchiver(name ArchiveFormat) (Archiver, error) {
 	archiver, ok := Archivers[name]
 	if !ok {
 		return nil, fmt.Errorf("couldn't find archival format %q", name)
