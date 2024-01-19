@@ -28,6 +28,19 @@ var twocmds = []string{
 }
 
 func TestUrootCmdline(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	execPath := filepath.Join(t.TempDir(), "binary")
+	// Build the stuff.
+	// NoTrimPath ensures that the right Go version is used when running the tests.
+	goEnv := golang.Default()
+	if err := goEnv.BuildDir(wd, execPath, &golang.BuildOpts{NoStrip: true, NoTrimPath: true, ExtraArgs: []string{"-cover"}}); err != nil {
+		t.Fatal(err)
+	}
+
 	samplef, err := os.CreateTemp("", "u-root-test-")
 	if err != nil {
 		t.Fatal(err)
@@ -233,7 +246,7 @@ func TestUrootCmdline(t *testing.T) {
 			wg.Add(2)
 			go func() {
 				defer wg.Done()
-				f1, sum1, err = buildIt(t, tt.args, tt.env, tt.err)
+				f1, sum1, err = buildIt(t, execPath, tt.args, tt.env, tt.err)
 				if err != nil {
 					errs[0] = err
 					return
@@ -258,7 +271,7 @@ func TestUrootCmdline(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				var err error
-				f2, sum2, err = buildIt(t, tt.args, tt.env, tt.err)
+				f2, sum2, err = buildIt(t, execPath, tt.args, tt.env, tt.err)
 				if err != nil {
 					errs[1] = err
 					return
@@ -294,23 +307,10 @@ func TestUrootCmdline(t *testing.T) {
 	}
 }
 
-func buildIt(t *testing.T, args, env []string, want error) (*os.File, []byte, error) {
+func buildIt(t *testing.T, execPath string, args, env []string, want error) (*os.File, []byte, error) {
 	t.Helper()
 	initramfs, err := os.CreateTemp(t.TempDir(), "u-root-")
 	if err != nil {
-		return nil, nil, err
-	}
-
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	execPath := filepath.Join(t.TempDir(), "binary")
-	// Build the stuff.
-	// NoTrimPath ensures that the right Go version is used when running the tests.
-	goEnv := golang.Default()
-	if err := goEnv.BuildDir(wd, execPath, &golang.BuildOpts{NoStrip: true, NoTrimPath: true, ExtraArgs: []string{"-cover"}}); err != nil {
 		return nil, nil, err
 	}
 
@@ -321,7 +321,7 @@ func buildIt(t *testing.T, args, env []string, want error) (*os.File, []byte, er
 
 	c := exec.Command(execPath, args...)
 	c.Env = append(os.Environ(), env...)
-	c.Env = append(c.Env, goEnv.Env()...)
+	c.Env = append(c.Env, golang.Default().Env()...)
 	if out, err := c.CombinedOutput(); err != want {
 		return nil, nil, fmt.Errorf("Error: %v\nOutput:\n%s", err, out)
 	} else if err != nil {
