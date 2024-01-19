@@ -56,6 +56,9 @@ func runinterp(interp, file string) ([]string, error) {
 	return parseinterp(string(o))
 }
 
+// GetInterp returns the interpreter file path for the given ELF.
+//
+// It is not an error for file not to be an ELF.
 func GetInterp(file string) (string, error) {
 	r, err := os.Open(file)
 	if err != nil {
@@ -64,7 +67,8 @@ func GetInterp(file string) (string, error) {
 	defer r.Close()
 	f, err := elf.NewFile(r)
 	if err != nil {
-		return "", nil
+		// Not an ELF is not an error.
+		return "", nil //nolint:nilerr
 	}
 
 	s := f.Section(".interp")

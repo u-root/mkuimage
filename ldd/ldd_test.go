@@ -27,7 +27,7 @@ func TestLdd(t *testing.T) {
 }
 
 // TestLddList tests that the LddList is the
-// same as the info returned by Ldd
+// same as the info returned by Ldd.
 func TestLddList(t *testing.T) {
 	n, err := List("/bin/date")
 	if err != nil {

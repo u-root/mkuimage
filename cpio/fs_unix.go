@@ -15,8 +15,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/u-root/uio/uio"
 	"github.com/u-root/mkuimage/upath"
+	"github.com/u-root/uio/uio"
 	"golang.org/x/sys/unix"
 )
 
@@ -51,10 +51,7 @@ func setModes(r Record) error {
 	if err := os.Chown(r.Name, int(r.UID), int(r.GID)); err != nil {
 		return err
 	}
-	if err := os.Chmod(r.Name, toFileMode(r)); err != nil {
-		return err
-	}
-	return nil
+	return os.Chmod(r.Name, toFileMode(r))
 }
 
 func toFileMode(r Record) os.FileMode {

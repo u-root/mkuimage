@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package testutil has utilities to test Go commands.
 package testutil
 
 import (
@@ -22,7 +23,8 @@ var binary string
 // Command decides which executable to call based on environment variables:
 // - EXECPATH="executable args" overrides any other test subject.
 // - UROOT_TEST_BUILD=1 will force compiling the u-root command in question.
-func Command(t testing.TB, args ...string) *exec.Cmd {
+func Command(tb testing.TB, args ...string) *exec.Cmd {
+	tb.Helper()
 	// If EXECPATH is set, just use that.
 	execPath := os.Getenv("EXECPATH")
 	if len(execPath) > 0 {
@@ -32,7 +34,7 @@ func Command(t testing.TB, args ...string) *exec.Cmd {
 
 	// Should be cached by Run if os.Executable is going to fail.
 	if len(binary) > 0 {
-		t.Logf("binary: %v", binary)
+		tb.Logf("binary: %v", binary)
 		return exec.Command(binary, args...)
 	}
 
@@ -40,7 +42,7 @@ func Command(t testing.TB, args ...string) *exec.Cmd {
 	if err != nil {
 		// Run should have prevented this case by caching something in
 		// `binary`.
-		t.Fatal("You must call testutil.Run() in your TestMain.")
+		tb.Fatal("You must call testutil.Run() in your TestMain.")
 	}
 
 	c := exec.Command(execPath, args...)
@@ -74,19 +76,22 @@ func run(m *testing.M, mainFn func()) int {
 		// This is NOT build-system-independent, and hence the fallback.
 		tmpDir, err := os.MkdirTemp("", "uroot-build")
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return 1
 		}
 		defer os.RemoveAll(tmpDir)
 
 		wd, err := os.Getwd()
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return 1
 		}
 
 		execPath := filepath.Join(tmpDir, "binary")
 		// Build the stuff.
 		if err := golang.Default().BuildDir(wd, execPath, nil); err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return 1
 		}
 
 		// Cache dat.

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Command mkuimage builds CPIO archives with the given files and Go commands.
 package main
 
 import (
@@ -27,21 +28,21 @@ import (
 	"github.com/u-root/uio/ulog"
 )
 
-// multiFlag is used for flags that support multiple invocations, e.g. -files
+// multiFlag is used for flags that support multiple invocations, e.g. -files.
 type multiFlag []string
 
 func (m *multiFlag) String() string {
 	return fmt.Sprint(*m)
 }
 
+// Set implements flag.Value.Set.
 func (m *multiFlag) Set(value string) error {
 	*m = append(*m, value)
 	return nil
 }
 
-// errors from the u-root command
 var (
-	ErrEmptyFilesArg = errors.New("empty argument to -files")
+	errEmptyFilesArg = errors.New("empty argument to -files")
 )
 
 // Flags for u-root builder.
@@ -55,10 +56,7 @@ var (
 	statsOutputPath                         *string
 	statsLabel                              *string
 	shellbang                               *bool
-	// For the new gobusybox support
-	usegobusybox *bool
-	genDir       *string
-	// For the new "filepath only" logic
+	// For the new "filepath only" logic.
 	urootSourceDir *string
 )
 
@@ -93,9 +91,6 @@ func init() {
 	statsOutputPath = flag.String("stats-output-path", "", "Write build stats to this file (JSON)")
 	statsLabel = flag.String("stats-label", "", "Use this statsLabel when writing stats")
 
-	// Flags for the gobusybox, which we hope to move to, since it works with modules.
-	genDir = flag.String("gen-dir", "", "Directory to generate source in")
-
 	// Flag for the new filepath only mode. This will be required to find the u-root commands and make templates work
 	// In almost every case, "." is fine.
 	urootSourceDir = flag.String("uroot-source", ".", "Path to the locally checked out u-root source tree in case commands from there are desired.")
@@ -110,8 +105,12 @@ type buildStats struct {
 
 func writeBuildStats(stats buildStats, path string) error {
 	var allStats []buildStats
-	if data, err := os.ReadFile(*statsOutputPath); err == nil {
-		json.Unmarshal(data, &allStats)
+	data, err := os.ReadFile(*statsOutputPath)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, &allStats); err != nil {
+		return err
 	}
 	found := false
 	for i, s := range allStats {
@@ -127,14 +126,11 @@ func writeBuildStats(stats buildStats, path string) error {
 			return strings.Compare(allStats[i].Label, allStats[j].Label) == -1
 		})
 	}
-	data, err := json.MarshalIndent(allStats, "", "  ")
+	data, err = json.MarshalIndent(allStats, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(*statsOutputPath, data, 0o644); err != nil {
-		return err
-	}
-	return nil
+	return os.WriteFile(*statsOutputPath, data, 0o644)
 }
 
 func generateLabel(env *golang.Environ) string {
@@ -166,14 +162,14 @@ func checkArgs(args ...string) error {
 	}
 
 	if args[len(args)-1] == "-files" {
-		return fmt.Errorf("last argument is -files:%w", ErrEmptyFilesArg)
+		return fmt.Errorf("last argument is -files:%w", errEmptyFilesArg)
 	}
 
 	// We know the last arg is not -files; scan the arguments for -files
 	// followed by a switch.
 	for i := 0; i < len(args)-1; i++ {
 		if args[i] == "-files" && args[i+1][0] == '-' {
-			return fmt.Errorf("-files argument %d is followed by a switch: %w", i, ErrEmptyFilesArg)
+			return fmt.Errorf("-files argument %d is followed by a switch: %w", i, errEmptyFilesArg)
 		}
 	}
 
@@ -219,7 +215,7 @@ func main() {
 		l.Fatalf("Build error: %v", err)
 	}
 
-	elapsed := time.Now().Sub(start)
+	elapsed := time.Since(start)
 
 	stats := buildStats{
 		Label:    *statsLabel,
@@ -254,14 +250,6 @@ func isRecommendedVersion(v string) bool {
 		}
 	}
 	return false
-}
-
-func canFindSource(dir string) error {
-	d := filepath.Join(dir, "cmds", "core")
-	if _, err := os.Stat(d); err != nil {
-		return fmt.Errorf("can not build u-root in %q:%w (-uroot-source may be incorrect or not set)", *urootSourceDir, os.ErrNotExist)
-	}
-	return nil
 }
 
 // Main is a separate function so defers are run on return, which they wouldn't

@@ -12,8 +12,8 @@ import (
 
 	"github.com/u-root/gobusybox/src/pkg/bb"
 	"github.com/u-root/mkuimage/cpio"
-	"github.com/u-root/uio/ulog"
 	"github.com/u-root/mkuimage/uroot/initramfs"
+	"github.com/u-root/uio/ulog"
 )
 
 // Commands to skip building in bb mode.
@@ -84,11 +84,11 @@ func (b GBBBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error {
 		var errGomod *bb.ErrModuleBuild
 		if errors.As(err, &errGopath) {
 			return fmt.Errorf("preserving bb generated source directory at %s due to error. To reproduce build, `cd %s` and `GO111MODULE=off GOPATH=%s go build`: %v", opts.TempDir, errGopath.CmdDir, errGopath.GOPATH, err)
-		} else if errors.As(err, &errGomod) {
-			return fmt.Errorf("preserving bb generated source directory at %s due to error. To debug build, `cd %s` and use `go build` to build, or `go mod [why|tidy|graph]` to debug dependencies, or `go list -m all` to list all dependency versions:\n%v", opts.TempDir, errGomod.CmdDir, err)
-		} else {
-			return fmt.Errorf("preserving bb generated source directory at %s due to error:\n%v", opts.TempDir, err)
 		}
+		if errors.As(err, &errGomod) {
+			return fmt.Errorf("preserving bb generated source directory at %s due to error. To debug build, `cd %s` and use `go build` to build, or `go mod [why|tidy|graph]` to debug dependencies, or `go list -m all` to list all dependency versions:\n%v", opts.TempDir, errGomod.CmdDir, err)
+		}
+		return fmt.Errorf("preserving bb generated source directory at %s due to error:\n%v", opts.TempDir, err)
 	}
 
 	if err := af.AddFile(bbPath, "bbin/bb"); err != nil {

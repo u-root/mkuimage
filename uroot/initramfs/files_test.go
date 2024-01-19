@@ -27,8 +27,11 @@ func TestFilesAddFileNoFollow(t *testing.T) {
 	dir := t.TempDir()
 	dir2 := t.TempDir()
 
-	os.Create(filepath.Join(dir, "foo2"))
-	os.Symlink(filepath.Join(dir, "foo2"), filepath.Join(dir2, "foo3"))
+	//nolint:errcheck
+	{
+		os.Create(filepath.Join(dir, "foo2"))
+		os.Symlink(filepath.Join(dir, "foo2"), filepath.Join(dir2, "foo3"))
+	}
 
 	for i, tt := range []struct {
 		name        string
@@ -92,16 +95,19 @@ func TestFilesAddFile(t *testing.T) {
 	dir2 := t.TempDir()
 	dir3 := t.TempDir()
 
-	os.Create(filepath.Join(dir, "foo"))
-	os.Create(filepath.Join(dir, "foo2"))
-	os.Symlink(filepath.Join(dir, "foo2"), filepath.Join(dir2, "foo3"))
-
-	fooDir := filepath.Join(dir3, "fooDir")
-	os.Mkdir(fooDir, os.ModePerm)
 	symlinkToDir3 := filepath.Join(dir3, "fooSymDir/")
-	os.Symlink(fooDir, symlinkToDir3)
-	os.Create(filepath.Join(fooDir, "foo"))
-	os.Create(filepath.Join(fooDir, "bar"))
+	fooDir := filepath.Join(dir3, "fooDir")
+	//nolint:errcheck
+	{
+		os.Create(filepath.Join(dir, "foo"))
+		os.Create(filepath.Join(dir, "foo2"))
+		os.Symlink(filepath.Join(dir, "foo2"), filepath.Join(dir2, "foo3"))
+
+		os.Mkdir(fooDir, os.ModePerm)
+		os.Symlink(fooDir, symlinkToDir3)
+		os.Create(filepath.Join(fooDir, "foo"))
+		os.Create(filepath.Join(fooDir, "bar"))
+	}
 
 	for i, tt := range []struct {
 		name        string

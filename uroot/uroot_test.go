@@ -13,9 +13,9 @@ import (
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
-	"github.com/u-root/uio/ulog/ulogtest"
 	"github.com/u-root/mkuimage/uroot/builder"
 	itest "github.com/u-root/mkuimage/uroot/initramfs/test"
+	"github.com/u-root/uio/ulog/ulogtest"
 )
 
 type inMemArchive struct {
@@ -69,11 +69,11 @@ func TestCreateInitramfs(t *testing.T) {
 			},
 			want: "",
 			validators: []itest.ArchiveValidator{
-				itest.HasFile{"bbin/bb"},
-				itest.HasRecord{cpio.Symlink("bbin/init", "bb")},
-				itest.HasRecord{cpio.Symlink("bbin/ls", "bb")},
-				itest.HasRecord{cpio.Symlink("bin/defaultsh", "../bbin/ls")},
-				itest.HasRecord{cpio.Symlink("bin/sh", "../bbin/ls")},
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.Symlink("bbin/init", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/ls", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bin/defaultsh", "../bbin/ls")},
+				itest.HasRecord{R: cpio.Symlink("bin/sh", "../bbin/ls")},
 			},
 		},
 		{
@@ -94,7 +94,7 @@ func TestCreateInitramfs(t *testing.T) {
 			},
 			want: "",
 			validators: []itest.ArchiveValidator{
-				itest.MissingFile{"bbin/bb"},
+				itest.MissingFile{Path: "bbin/bb"},
 			},
 		},
 		{
@@ -127,7 +127,7 @@ func TestCreateInitramfs(t *testing.T) {
 			},
 			want: "",
 			validators: []itest.ArchiveValidator{
-				itest.HasRecord{cpio.Symlink("init", "bin/systemd")},
+				itest.HasRecord{R: cpio.Symlink("init", "bin/systemd")},
 			},
 		},
 		{
@@ -159,18 +159,18 @@ func TestCreateInitramfs(t *testing.T) {
 			},
 			want: "",
 			validators: []itest.ArchiveValidator{
-				itest.HasRecord{cpio.Symlink("init", "bbin/init")},
+				itest.HasRecord{R: cpio.Symlink("init", "bbin/init")},
 
 				// bb mode.
-				itest.HasFile{"bbin/bb"},
-				itest.HasRecord{cpio.Symlink("bbin/init", "bb")},
-				itest.HasRecord{cpio.Symlink("bbin/ls", "bb")},
-				itest.HasRecord{cpio.Symlink("bin/defaultsh", "../bbin/ls")},
-				itest.HasRecord{cpio.Symlink("bin/sh", "../bbin/ls")},
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.Symlink("bbin/init", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/ls", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bin/defaultsh", "../bbin/ls")},
+				itest.HasRecord{R: cpio.Symlink("bin/sh", "../bbin/ls")},
 
 				// binary mode.
-				itest.HasFile{"bin/cp"},
-				itest.HasFile{"bin/dd"},
+				itest.HasFile{Path: "bin/cp"},
+				itest.HasFile{Path: "bin/dd"},
 			},
 		},
 	} {

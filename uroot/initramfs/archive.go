@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package initramfs can write archives out to CPIO or directories.
 package initramfs
 
 import (
@@ -13,10 +14,12 @@ import (
 )
 
 var (
+	// CPIO creates files in a CPIO file.
 	CPIO = CPIOArchiver{
 		RecordFormat: cpio.Newc,
 	}
 
+	// Dir writes "archived" files to a directory.
 	Dir = DirArchiver{}
 
 	// Archivers are the supported initramfs archivers at the moment.
@@ -117,7 +120,7 @@ func Write(opts *Opts) error {
 			}
 			// TODO: ignore only the error where it already exists
 			// in archive.
-			opts.Files.AddRecord(transform(f))
+			_ = opts.Files.AddRecord(transform(f))
 		}
 	}
 
