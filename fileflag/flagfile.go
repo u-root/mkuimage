@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package uflag supports u-root-custom flags as well as flag files.
-package uflag
+// Package fileflag supports flag files.
+package fileflag
 
 import (
 	"fmt"
