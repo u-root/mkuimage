@@ -34,12 +34,10 @@ jobs:
         run: go build -v ./...
 
       - name: Test
-        run: |
-          mkdir cmd/mkuimage/cover
-          GOCOVERDIR=cover go test -v -covermode atomic -coverpkg ./... -coverprofile cover.out ./...
+        run: go test -v -covermode atomic -coverpkg ./... -coverprofile cover.out ./...
 
-      - name: Convert coverage data
-        run: go tool covdata textfmt -i=cmd/mkuimage/cover -o cover2.out
+      - name: Convert GOCOVERDIR coverage data
+        run: go tool covdata textfmt -i=cmd/mkuimage/cover -o cmdcover.out
 
       - uses: codecov/codecov-action@v4-beta
         env:
@@ -48,6 +46,7 @@ jobs:
           flags: ${{ matrix.platform }}-unit
           fail_ci_if_error: true
           verbose: true
+          files: cover.out,cmdcover.out
 
   race:
     name: Race test
