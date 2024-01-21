@@ -41,12 +41,18 @@ func TestUrootCmdline(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	gocoverdir := filepath.Join(wd, "cover")
+	if err := os.Mkdir(gocoverdir, 0o777); err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+
 	samplef, err := os.CreateTemp("", "u-root-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	samplef.Close()
 	defer os.RemoveAll(samplef.Name())
+
 	sampledir := t.TempDir()
 	if err = os.WriteFile(filepath.Join(sampledir, "foo"), nil, 0o644); err != nil {
 		t.Fatal(err)
@@ -246,7 +252,7 @@ func TestUrootCmdline(t *testing.T) {
 			wg.Add(2)
 			go func() {
 				defer wg.Done()
-				f1, sum1, err = buildIt(t, execPath, tt.args, tt.env, tt.err)
+				f1, sum1, err = buildIt(t, execPath, tt.args, tt.env, tt.err, gocoverdir)
 				if err != nil {
 					errs[0] = err
 					return
@@ -271,7 +277,7 @@ func TestUrootCmdline(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				var err error
-				f2, sum2, err = buildIt(t, execPath, tt.args, tt.env, tt.err)
+				f2, sum2, err = buildIt(t, execPath, tt.args, tt.env, tt.err, gocoverdir)
 				if err != nil {
 					errs[1] = err
 					return
@@ -307,7 +313,7 @@ func TestUrootCmdline(t *testing.T) {
 	}
 }
 
-func buildIt(t *testing.T, execPath string, args, env []string, want error) (*os.File, []byte, error) {
+func buildIt(t *testing.T, execPath string, args, env []string, want error, gocoverdir string) (*os.File, []byte, error) {
 	t.Helper()
 	initramfs, err := os.CreateTemp(t.TempDir(), "u-root-")
 	if err != nil {
@@ -322,6 +328,7 @@ func buildIt(t *testing.T, execPath string, args, env []string, want error) (*os
 	c := exec.Command(execPath, args...)
 	c.Env = append(os.Environ(), env...)
 	c.Env = append(c.Env, golang.Default().Env()...)
+	c.Env = append(c.Env, "GOCOVERDIR="+gocoverdir)
 	if out, err := c.CombinedOutput(); err != want {
 		return nil, nil, fmt.Errorf("Error: %v\nOutput:\n%s", err, out)
 	} else if err != nil {
