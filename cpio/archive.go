@@ -43,7 +43,7 @@ func ArchiveFromRecords(rs []Record) (*Archive, error) {
 // ArchiveFromReader reads records from r into a new Archive in memory.
 func ArchiveFromReader(r RecordReader) (*Archive, error) {
 	a := InMemArchive()
-	if err := Concat(a, r, nil); err != nil {
+	if err := Copy(a, r, nil); err != nil {
 		return nil, err
 	}
 	return a, nil
