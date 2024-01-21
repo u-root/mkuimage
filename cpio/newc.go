@@ -219,10 +219,11 @@ func (n newc) Reader(r io.ReaderAt) RecordReader {
 	return EOFReader{&reader{n: n, r: r}}
 }
 
-// NewFileReader implements RecordFormat.Reader. If the file
+// FileReader implements RecordFormat.Reader. If the file
 // implements ReadAt, then it is used for greater efficiency.
 // If it only implements Read, then a discarder will be used
 // instead.
+//
 // Note a complication:
 //
 //	r, _, _ := os.Pipe()
@@ -243,12 +244,12 @@ func (n newc) Reader(r io.ReaderAt) RecordReader {
 // current offset? If not, then the file is wrapped with a
 // discardreader. The discard reader is far less efficient
 // but allows cpio to read from a pipe.
-func (n newc) NewFileReader(f *os.File) (RecordReader, error) {
+func (n newc) FileReader(f *os.File) RecordReader {
 	_, err := f.Seek(0, 0)
 	if err == nil {
-		return EOFReader{&reader{n: n, r: f}}, nil
+		return EOFReader{&reader{n: n, r: f}}
 	}
-	return EOFReader{&reader{n: n, r: &discarder{r: f}}}, nil
+	return EOFReader{&reader{n: n, r: &discarder{r: f}}}
 }
 
 func (r *reader) read(p []byte) error {
