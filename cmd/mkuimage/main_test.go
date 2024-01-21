@@ -323,7 +323,7 @@ func buildIt(t *testing.T, execPath string, args, env []string, want error, goco
 	// Use the u-root command outside of the $GOPATH tree to make sure it
 	// still works.
 	args = append([]string{"-o", initramfs.Name()}, args...)
-	t.Logf("Commandline: %v u-root %v", strings.Join(env, " "), strings.Join(args, " "))
+	t.Logf("Commandline: %v mkuimage %v", strings.Join(env, " "), strings.Join(args, " "))
 
 	c := exec.Command(execPath, args...)
 	c.Env = append(os.Environ(), env...)
