@@ -196,13 +196,13 @@ func WriteRecordsAndDirs(rw RecordWriter, files []Record) error {
 	return nil
 }
 
-// Passthrough copies from a RecordReader to a RecordWriter.
+// CopyAndFinish copies from a RecordReader to a RecordWriter.
 //
-// Passthrough writes a trailer record.
+// CopyAndFinish writes a trailer record.
 //
 // It processes one record at a time to minimize the memory footprint.
-func Passthrough(r RecordReader, w RecordWriter) error {
-	if err := Concat(w, r, nil); err != nil {
+func CopyAndFinish(w RecordWriter, r RecordReader) error {
+	if err := Copy(w, r, nil); err != nil {
 		return err
 	}
 	return WriteTrailer(w)
@@ -213,11 +213,11 @@ func WriteTrailer(w RecordWriter) error {
 	return w.WriteRecord(TrailerRecord)
 }
 
-// Concat reads files from r one at a time, and writes them to w.
+// Copy reads files from r one at a time, and writes them to w.
 //
-// Concat does not write a trailer record and applies transform to every record
+// Copy does not write a trailer record and applies transform to every record
 // before writing it. transform may be nil.
-func Concat(w RecordWriter, r RecordReader, transform func(Record) Record) error {
+func Copy(w RecordWriter, r RecordReader, transform func(Record) Record) error {
 	return ForEachRecord(r, func(f Record) error {
 		if transform != nil {
 			f = transform(f)
