@@ -463,10 +463,7 @@ func TestPipeWriteRead(t *testing.T) {
 
 	Debug = t.Logf
 
-	rdr, err := Newc.NewFileReader(rp)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rdr := Newc.FileReader(rp)
 	for _, r := range records {
 		rec, err := rdr.ReadRecord()
 		if err != nil {

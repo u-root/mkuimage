@@ -109,7 +109,7 @@ type RecordWriter interface {
 // today.
 type RecordFormat interface {
 	Reader(r io.ReaderAt) RecordReader
-	NewFileReader(*os.File) (RecordReader, error)
+	FileReader(f *os.File) RecordReader
 	Writer(w io.Writer) RecordWriter
 }
 
