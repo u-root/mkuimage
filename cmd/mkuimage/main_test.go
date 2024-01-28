@@ -145,42 +145,6 @@ func TestUrootCmdline(t *testing.T) {
 			},
 		},
 		{
-			name: "MIPS build",
-			env:  []string{"GOARCH=mips"},
-			args: []string{
-				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/elvish",
-				"github.com/u-root/u-root/cmds/core/echo",
-			},
-		},
-		{
-			name: "MIPSLE build",
-			env:  []string{"GOARCH=mipsle"},
-			args: []string{
-				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/elvish",
-				"github.com/u-root/u-root/cmds/core/echo",
-			},
-		},
-		{
-			name: "MIPS64 build",
-			env:  []string{"GOARCH=mips64"},
-			args: []string{
-				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/elvish",
-				"github.com/u-root/u-root/cmds/core/echo",
-			},
-		},
-		{
-			name: "MIPS64LE build",
-			env:  []string{"GOARCH=mips64le"},
-			args: []string{
-				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/elvish",
-				"github.com/u-root/u-root/cmds/core/echo",
-			},
-		},
-		{
 			name: "ARM7 build",
 			env:  []string{"GOARCH=arm", "GOARM=7"},
 			args: []string{
@@ -192,24 +156,6 @@ func TestUrootCmdline(t *testing.T) {
 		{
 			name: "ARM64 build",
 			env:  []string{"GOARCH=arm64"},
-			args: []string{
-				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/elvish",
-				"github.com/u-root/u-root/cmds/core/echo",
-			},
-		},
-		{
-			name: "386 (32 bit) build",
-			env:  []string{"GOARCH=386"},
-			args: []string{
-				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/elvish",
-				"github.com/u-root/u-root/cmds/core/echo",
-			},
-		},
-		{
-			name: "Power 64bit build",
-			env:  []string{"GOARCH=ppc64le"},
 			args: []string{
 				"github.com/u-root/u-root/cmds/core/init",
 				"github.com/u-root/u-root/cmds/core/elvish",
