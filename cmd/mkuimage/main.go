@@ -350,8 +350,9 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 		// The command-line tool only allows specifying one build mode
 		// right now.
 		c = append(c, uroot.Commands{
-			Builder:  b,
-			Packages: pkgs,
+			Builder:   b,
+			Packages:  pkgs,
+			BuildOpts: buildOpts,
 		})
 	}
 
@@ -366,7 +367,6 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 		UseExistingInit: *useExistingInit,
 		InitCmd:         initCommand,
 		DefaultShell:    *defaultShell,
-		BuildOpts:       buildOpts,
 	}
 	uinitArgs := shlex.Split(*uinitCmd)
 	if len(uinitArgs) > 0 {

@@ -103,6 +103,10 @@ type Commands struct {
 	// BinaryDir may be empty, in which case Builder.DefaultBinaryDir()
 	// will be used.
 	BinaryDir string
+
+	// Build options for building go binaries. Ultimate this holds all the
+	// args that end up being passed to `go build`.
+	BuildOpts *golang.BuildOpts
 }
 
 // TargetDir returns the initramfs binary directory for these Commands.
@@ -224,10 +228,6 @@ type Opts struct {
 	//
 	// This must be specified to have a default shell.
 	DefaultShell string
-
-	// Build options for building go binaries. Ultimate this holds all the
-	// args that end up being passed to `go build`.
-	BuildOpts *golang.BuildOpts
 }
 
 // CreateInitramfs creates an initramfs built to opts' specifications.
@@ -243,10 +243,6 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 	if opts.Env != nil {
 		env = opts.Env
 	}
-	if opts.BuildOpts == nil {
-		opts.BuildOpts = &golang.BuildOpts{}
-	}
-
 	files := initramfs.NewFiles()
 
 	lookupEnv := findpkg.DefaultEnv()
@@ -269,11 +265,15 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 		if err != nil {
 			return err
 		}
+		buildOpts := cmds.BuildOpts
+		if buildOpts == nil {
+			buildOpts = &golang.BuildOpts{}
+		}
 
 		// Build packages.
 		bOpts := builder.Opts{
 			Env:       env,
-			BuildOpts: opts.BuildOpts,
+			BuildOpts: buildOpts,
 			Packages:  cmds.Packages,
 			TempDir:   builderTmpDir,
 			BinaryDir: cmds.TargetDir(),
