@@ -319,7 +319,6 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 		var b builder.Builder
 		switch *build {
 		case "bb", "gbb":
-			l.Printf("NOTE: building with the new gobusybox; to get the old behavior check out commit 8b790de")
 			b = builder.GBBBuilder{ShellBang: *shellbang}
 		case "binary":
 			b = builder.BinaryBuilder{}
