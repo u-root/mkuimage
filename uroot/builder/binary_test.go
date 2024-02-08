@@ -18,7 +18,7 @@ func TestBinaryBuild(t *testing.T) {
 	opts := Opts{
 		Env: golang.Default(golang.DisableCGO()),
 		Packages: []string{
-			"../test/foo",
+			"../../cmd/mkuimage",
 			"github.com/u-root/u-root/cmds/core/elvish",
 			"github.com/u-root/u-root/cmds/core/init",
 			"cmd/test2json",
@@ -35,7 +35,7 @@ func TestBinaryBuild(t *testing.T) {
 
 	mustContain := []string{
 		"bbin/elvish",
-		"bbin/foo",
+		"bbin/mkuimage",
 		"bbin/init",
 	}
 	for _, name := range mustContain {
