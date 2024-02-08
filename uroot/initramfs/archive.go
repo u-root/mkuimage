@@ -11,7 +11,6 @@ import (
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
-	"github.com/u-root/uio/ulog"
 )
 
 var (
@@ -40,7 +39,7 @@ type Archiver interface {
 	CreateDefault(env *golang.Environ) (string, error)
 
 	// OpenWriter opens an archive writer at `path`.
-	OpenWriter(l ulog.Logger, path string) (Writer, error)
+	OpenWriter(path string) (Writer, error)
 
 	// Reader returns a Reader that allows reading files from a file.
 	Reader(file io.ReaderAt) Reader

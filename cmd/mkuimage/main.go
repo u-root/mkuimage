@@ -281,7 +281,7 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 		}
 		l.Printf("Output path is %v", *outputPath)
 	}
-	w, err := archiver.OpenWriter(l, *outputPath)
+	w, err := archiver.OpenWriter(*outputPath)
 	if err != nil {
 		return err
 	}

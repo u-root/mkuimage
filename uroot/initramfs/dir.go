@@ -12,7 +12,6 @@ import (
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
-	"github.com/u-root/uio/ulog"
 )
 
 // DirArchiver implements Archiver for a directory.
@@ -36,7 +35,7 @@ func (da DirArchiver) CreateDefault(env *golang.Environ) (string, error) {
 }
 
 // OpenWriter implements Archiver.OpenWriter.
-func (da DirArchiver) OpenWriter(l ulog.Logger, path string) (Writer, error) {
+func (da DirArchiver) OpenWriter(path string) (Writer, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("path is required")
 	}
