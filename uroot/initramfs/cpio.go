@@ -9,8 +9,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
-	"github.com/u-root/uio/ulog"
 )
 
 // CPIOArchiver is an implementation of Archiver for the cpio format.
@@ -18,9 +18,18 @@ type CPIOArchiver struct {
 	cpio.RecordFormat
 }
 
+// CreateDefault chooses /tmp/initramfs.cpio or /tmp/initramfs.GOOS_GOARCH.cpio
+// if available.
+func (ca CPIOArchiver) CreateDefault(env *golang.Environ) (string, error) {
+	if len(env.GOOS) == 0 || len(env.GOARCH) == 0 {
+		return "/tmp/initramfs.cpio", nil
+	}
+	return fmt.Sprintf("/tmp/initramfs.%s_%s.cpio", env.GOOS, env.GOARCH), nil
+}
+
 // OpenWriter opens `path` as the correct file type and returns an
 // Writer pointing to `path`.
-func (ca CPIOArchiver) OpenWriter(l ulog.Logger, path string) (Writer, error) {
+func (ca CPIOArchiver) OpenWriter(path string) (Writer, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("path is required")
 	}
