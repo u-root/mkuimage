@@ -5,6 +5,7 @@
 package initramfs
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -137,11 +138,13 @@ func (af *Files) AddFileNoFollow(src string, dest string) error {
 	return af.addFile(src, dest, false)
 }
 
+var errAbsoluteName = errors.New("record name must not be absolute")
+
 // AddRecord adds a cpio.Record into the archive at `r.Name`.
 func (af *Files) AddRecord(r cpio.Record) error {
 	r.Name = path.Clean(r.Name)
 	if filepath.IsAbs(r.Name) {
-		return fmt.Errorf("record name %q must not be absolute", r.Name)
+		return fmt.Errorf("%w: %q", errAbsoluteName, r.Name)
 	}
 
 	if src, ok := af.Files[r.Name]; ok {
