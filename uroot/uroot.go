@@ -395,7 +395,12 @@ func ParseExtraFiles(logger ulog.Logger, archive *initramfs.Files, extraFiles []
 		var src, dst string
 		parts := strings.SplitN(file, ":", 2)
 		if len(parts) == 2 {
-			// treat the entry with the new src:dst syntax
+			if len(parts[0]) == 0 {
+				return fmt.Errorf("%w: invalid extra files %q", os.ErrInvalid, file)
+			}
+			if len(parts[1]) == 0 {
+				return fmt.Errorf("%w: invalid extra files %q", os.ErrInvalid, file)
+			}
 			src = filepath.Clean(parts[0])
 			dst = filepath.Clean(parts[1])
 		} else {
