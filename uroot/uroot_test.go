@@ -65,7 +65,7 @@ func TestCreateInitramfs(t *testing.T) {
 				UrootSource:  urootpath,
 				Commands: []Commands{
 					{
-						Builder: builder.BusyBox,
+						Builder: builder.Busybox,
 						Packages: []string{
 							"github.com/u-root/u-root/cmds/core/init",
 							"github.com/u-root/u-root/cmds/core/ls",
@@ -335,7 +335,7 @@ func TestCreateInitramfs(t *testing.T) {
 				UrootSource:     urootpath,
 				Commands: []Commands{
 					{
-						Builder: builder.BusyBox,
+						Builder: builder.Busybox,
 						Packages: []string{
 							"github.com/u-root/u-root/cmds/core/init",
 							"github.com/u-root/u-root/cmds/core/ls",

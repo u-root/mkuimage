@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	// BusyBox is a shared GBBBuilder instance.
-	BusyBox = GBBBuilder{}
+	// Busybox is a shared GBBBuilder instance.
+	Busybox = GBBBuilder{}
 	// Binary is a shared BinaryBuilder instance.
 	Binary = BinaryBuilder{}
 )
