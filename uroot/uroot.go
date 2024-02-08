@@ -10,6 +10,7 @@ package uroot
 
 import (
 	"debug/elf"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -233,7 +234,7 @@ type Opts struct {
 // CreateInitramfs creates an initramfs built to opts' specifications.
 func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 	if _, err := os.Stat(opts.TempDir); os.IsNotExist(err) {
-		return fmt.Errorf("temp dir %q must exist: %v", opts.TempDir, err)
+		return fmt.Errorf("temp dir %q must exist: %w", opts.TempDir, err)
 	}
 	if opts.OutputFile == nil {
 		return fmt.Errorf("must give output file")
@@ -254,7 +255,7 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 	for index, cmds := range opts.Commands {
 		paths, err := findpkg.ResolveGlobs(logger, env, lookupEnv, cmds.Packages)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", errResolvePackage, err)
 		}
 		opts.Commands[index].Packages = paths
 	}
@@ -294,21 +295,21 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 		return err
 	}
 	if err := opts.addSymlinkTo(logger, archive, opts.UinitCmd, "bin/uinit"); err != nil {
-		return fmt.Errorf("%v: specify -uinitcmd=\"\" to ignore this error and build without a uinit", err)
+		return fmt.Errorf("%w: %w", err, errUinitSymlink)
 	}
 	if len(opts.UinitArgs) > 0 {
 		if err := archive.AddRecord(cpio.StaticFile("etc/uinit.flags", fileflag.ArgvToFile(opts.UinitArgs), 0o444)); err != nil {
-			return fmt.Errorf("%v: could not add uinit arguments from UinitArgs (-uinitcmd) to initramfs", err)
+			return fmt.Errorf("%w: %w", err, errUinitArgs)
 		}
 	}
 	if err := opts.addSymlinkTo(logger, archive, opts.InitCmd, "init"); err != nil {
-		return fmt.Errorf("%v: specify -initcmd=\"\" to ignore this error and build without an init (or, did you specify a list, and are you missing github.com/u-root/u-root/cmds/core/init?)", err)
+		return fmt.Errorf("%w: %w", err, errInitSymlink)
 	}
 	if err := opts.addSymlinkTo(logger, archive, opts.DefaultShell, "bin/sh"); err != nil {
-		return fmt.Errorf("%v: specify -defaultsh=\"\" to ignore this error and build without a shell", err)
+		return fmt.Errorf("%w: %w", err, errDefaultshSymlink)
 	}
 	if err := opts.addSymlinkTo(logger, archive, opts.DefaultShell, "bin/defaultsh"); err != nil {
-		return fmt.Errorf("%v: specify -defaultsh=\"\" to ignore this error and build without a shell", err)
+		return fmt.Errorf("%w: %w", err, errDefaultshSymlink)
 	}
 
 	// Finally, write the archive.
@@ -318,6 +319,15 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 	return nil
 }
 
+var (
+	errResolvePackage   = errors.New("failed to resolve package paths")
+	errInitSymlink      = errors.New("specify -initcmd=\"\" to ignore this error and build without an init (or, did you specify a list, and are you missing github.com/u-root/u-root/cmds/core/init?)")
+	errUinitSymlink     = errors.New("specify -uinitcmd=\"\" to ignore this error and build without a uinit")
+	errDefaultshSymlink = errors.New("specify -defaultsh=\"\" to ignore this error and build without a shell")
+	errSymlink          = errors.New("could not create symlink")
+	errUinitArgs        = errors.New("could not add uinit arguments")
+)
+
 func (o *Opts) addSymlinkTo(logger ulog.Logger, archive *initramfs.Opts, command string, source string) error {
 	if len(command) == 0 {
 		return nil
@@ -326,7 +336,7 @@ func (o *Opts) addSymlinkTo(logger ulog.Logger, archive *initramfs.Opts, command
 	target, err := resolveCommandOrPath(command, o.Commands)
 	if err != nil {
 		if o.Commands != nil {
-			return fmt.Errorf("could not create symlink from %q to %q: %v", source, command, err)
+			return fmt.Errorf("%w from %q to %q: %w", errSymlink, source, command, err)
 		}
 		logger.Printf("Could not create symlink from %q to %q: %v", source, command, err)
 		return nil
@@ -343,7 +353,7 @@ func (o *Opts) addSymlinkTo(logger ulog.Logger, archive *initramfs.Opts, command
 	}
 
 	if err := archive.AddRecord(cpio.Symlink(source, relTarget)); err != nil {
-		return fmt.Errorf("failed to add symlink %s -> %s to initramfs: %v", source, relTarget, err)
+		return fmt.Errorf("failed to add symlink %s -> %s to initramfs: %w", source, relTarget, err)
 	}
 	return nil
 }
@@ -405,10 +415,10 @@ func ParseExtraFiles(logger ulog.Logger, archive *initramfs.Files, extraFiles []
 		}
 		src, err := filepath.Abs(src)
 		if err != nil {
-			return fmt.Errorf("couldn't find absolute path for %q: %v", src, err)
+			return fmt.Errorf("couldn't find absolute path for %q: %w", src, err)
 		}
 		if err := archive.AddFile(src, dst); err != nil {
-			return fmt.Errorf("couldn't add %q to archive: %v", file, err)
+			return fmt.Errorf("couldn't add %q to archive: %w", file, err)
 		}
 
 		if lddDeps {

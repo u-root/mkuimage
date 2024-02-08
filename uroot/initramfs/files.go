@@ -73,7 +73,7 @@ func (af *Files) addFile(src string, dest string, follow bool) error {
 	// a record or file, we want to include its children anyway.
 	sInfo, err := os.Lstat(src)
 	if err != nil {
-		return fmt.Errorf("adding %q to archive failed because Lstat failed: %v", src, err)
+		return fmt.Errorf("adding %q to archive failed because Lstat failed: %w", src, err)
 	}
 
 	// Recursively add children.
@@ -92,7 +92,11 @@ func (af *Files) addFile(src string, dest string, follow bool) error {
 	}
 
 	if record, ok := af.Records[dest]; ok {
-		return fmt.Errorf("record for %q already exists in archive: %v", dest, record)
+		return &os.PathError{
+			Op:   "add to archive",
+			Path: dest,
+			Err:  fmt.Errorf("%w: is %v", os.ErrExist, record),
+		}
 	}
 
 	if srcFile, ok := af.Files[dest]; ok {
@@ -100,7 +104,11 @@ func (af *Files) addFile(src string, dest string, follow bool) error {
 		if src == srcFile {
 			return nil
 		}
-		return fmt.Errorf("record for %q already exists in archive (is %q)", dest, src)
+		return &os.PathError{
+			Op:   "add to archive",
+			Path: dest,
+			Err:  fmt.Errorf("%w: backed by %q", os.ErrExist, src),
+		}
 	}
 
 	af.Files[dest] = src
@@ -137,13 +145,21 @@ func (af *Files) AddRecord(r cpio.Record) error {
 	}
 
 	if src, ok := af.Files[r.Name]; ok {
-		return fmt.Errorf("record for %q already exists in archive: file %q", r.Name, src)
+		return &os.PathError{
+			Op:   "add to archive",
+			Path: r.Name,
+			Err:  fmt.Errorf("%w: backed by %q", os.ErrExist, src),
+		}
 	}
-	if rr, ok := af.Records[r.Name]; ok {
-		if rr.Info == r.Info {
+	if record, ok := af.Records[r.Name]; ok {
+		if record.Info == r.Info {
 			return nil
 		}
-		return fmt.Errorf("record for %q already exists in archive: %v", r.Name, rr)
+		return &os.PathError{
+			Op:   "add to archive",
+			Path: r.Name,
+			Err:  fmt.Errorf("%w: is %v", os.ErrExist, record),
+		}
 	}
 
 	af.Records[r.Name] = r
