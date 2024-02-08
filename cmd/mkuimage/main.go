@@ -275,10 +275,11 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 
 	// Open the target initramfs file.
 	if *outputPath == "" {
-		if len(env.GOOS) == 0 && len(env.GOARCH) == 0 {
-			return fmt.Errorf("passed no path, GOOS, and GOARCH to CPIOArchiver.OpenWriter")
+		*outputPath, err = archiver.CreateDefault(env)
+		if err != nil {
+			return err
 		}
-		*outputPath = fmt.Sprintf("/tmp/initramfs.%s_%s.cpio", env.GOOS, env.GOARCH)
+		l.Printf("Output path is %v", *outputPath)
 	}
 	w, err := archiver.OpenWriter(l, *outputPath)
 	if err != nil {
