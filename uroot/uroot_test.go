@@ -35,8 +35,10 @@ func TestCreateInitramfs(t *testing.T) {
 	tmp400 := filepath.Join(dir, "tmp400")
 	_ = os.MkdirAll(tmp400, 0o400)
 
-	somefile := filepath.Join(dir, "somefile")
-	somefile2 := filepath.Join(dir, "somefile2")
+	somedir := filepath.Join(dir, "dir")
+	_ = os.MkdirAll(somedir, 0o777)
+	somefile := filepath.Join(dir, "dir", "somefile")
+	somefile2 := filepath.Join(dir, "dir", "somefile2")
 	_ = os.WriteFile(somefile, []byte("foobar"), 0o777)
 	_ = os.WriteFile(somefile2, []byte("spongebob"), 0o777)
 
@@ -176,7 +178,39 @@ func TestCreateInitramfs(t *testing.T) {
 				itest.IsEmpty{},
 			},
 		},
-		// TODO: files are directories.
+		{
+			name: "files are directories",
+			opts: Opts{
+				TempDir: dir,
+				ExtraFiles: []string{
+					somedir + ":etc/foo/bar",
+				},
+			},
+			validators: []itest.ArchiveValidator{
+				itest.HasDir{Path: "etc"},
+				itest.HasDir{Path: "etc/foo"},
+				itest.HasDir{Path: "etc/foo/bar"},
+				itest.HasContent{Path: "etc/foo/bar/somefile", Content: "foobar"},
+				itest.HasContent{Path: "etc/foo/bar/somefile2", Content: "spongebob"},
+			},
+		},
+		{
+			name: "files are directories SkipLDD",
+			opts: Opts{
+				TempDir: dir,
+				ExtraFiles: []string{
+					somedir + ":etc/foo/bar",
+				},
+				SkipLDD: true,
+			},
+			validators: []itest.ArchiveValidator{
+				itest.HasDir{Path: "etc"},
+				itest.HasDir{Path: "etc/foo"},
+				itest.HasDir{Path: "etc/foo/bar"},
+				itest.HasContent{Path: "etc/foo/bar/somefile", Content: "foobar"},
+				itest.HasContent{Path: "etc/foo/bar/somefile2", Content: "spongebob"},
+			},
+		},
 		{
 			name: "file conflicts with init",
 			opts: Opts{
