@@ -136,7 +136,7 @@ type Opts struct {
 	//
 	//   []Commands{
 	//     Commands{
-	//       Builder: builder.BusyBox,
+	//       Builder: builder.Busybox,
 	//       Packages: []string{
 	//         "github.com/u-root/u-root/cmds/ls",
 	//         "github.com/u-root/u-root/cmds/ip",
@@ -465,17 +465,17 @@ func (o *Opts) AddCommands(c ...Commands) {
 	o.Commands = append(o.Commands, c...)
 }
 
-// AddBusyBoxCommands adds Go commands to the busybox build.
-func (o *Opts) AddBusyBoxCommands(pkgs ...string) {
+// AddBusyboxCommands adds Go commands to the busybox build.
+func (o *Opts) AddBusyboxCommands(pkgs ...string) {
 	for i, cmds := range o.Commands {
-		if cmds.Builder == builder.BusyBox {
+		if cmds.Builder == builder.Busybox {
 			o.Commands[i].Packages = append(o.Commands[i].Packages, pkgs...)
 			return
 		}
 	}
 
 	// Not found? Add first busybox.
-	o.AddCommands(BusyBoxCmds(pkgs...)...)
+	o.AddCommands(BusyboxCmds(pkgs...)...)
 }
 
 // BinaryCmds returns a list of Commands with cmds built as a busybox.
@@ -491,14 +491,14 @@ func BinaryCmds(cmds ...string) []Commands {
 	}
 }
 
-// BusyBoxCmds returns a list of Commands with cmds built as a busybox.
-func BusyBoxCmds(cmds ...string) []Commands {
+// BusyboxCmds returns a list of Commands with cmds built as a busybox.
+func BusyboxCmds(cmds ...string) []Commands {
 	if len(cmds) == 0 {
 		return nil
 	}
 	return []Commands{
 		{
-			Builder:  builder.BusyBox,
+			Builder:  builder.Busybox,
 			Packages: cmds,
 		},
 	}
