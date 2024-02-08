@@ -150,7 +150,6 @@ func TestCreateInitramfs(t *testing.T) {
 				itest.IsEmpty{},
 			},
 		},
-		/* TODO: case is broken.
 		{
 			name: "files invalid syntax 1",
 			opts: Opts{
@@ -159,13 +158,11 @@ func TestCreateInitramfs(t *testing.T) {
 					":etc/somefile",
 				},
 			},
-			//errs: []error{os.ErrExist},
+			errs: []error{os.ErrInvalid},
 			validators: []itest.ArchiveValidator{
 				itest.IsEmpty{},
 			},
 		},
-		*/
-		/* TODO: case is broken.
 		{
 			name: "files invalid syntax 2",
 			opts: Opts{
@@ -174,12 +171,11 @@ func TestCreateInitramfs(t *testing.T) {
 					somefile + ":",
 				},
 			},
-			//errs: []error{os.ErrExist},
+			errs: []error{os.ErrInvalid},
 			validators: []itest.ArchiveValidator{
 				itest.IsEmpty{},
 			},
 		},
-		*/
 		// TODO: files are directories.
 		{
 			name: "file conflicts with init",
