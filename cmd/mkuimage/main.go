@@ -241,6 +241,7 @@ func main() {
 var recommendedVersions = []string{
 	"go1.20",
 	"go1.21",
+	"go1.22",
 }
 
 func isRecommendedVersion(v string) bool {
