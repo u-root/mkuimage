@@ -43,6 +43,21 @@ func (hf HasFile) Validate(a *cpio.Archive) error {
 	return fmt.Errorf("archive does not contain %s, but should", hf.Path)
 }
 
+type HasDir struct {
+	Path string
+}
+
+func (h HasDir) Validate(a *cpio.Archive) error {
+	r, ok := a.Get(h.Path)
+	if !ok {
+		return fmt.Errorf("archive does not contain %s, but should", h.Path)
+	}
+	if r.Mode&cpio.S_IFDIR == 0 {
+		return fmt.Errorf("file %v should be directory, but isn't", h.Path)
+	}
+	return nil
+}
+
 type HasContent struct {
 	Path    string
 	Content string

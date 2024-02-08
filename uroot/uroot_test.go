@@ -5,6 +5,7 @@
 package uroot
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -35,28 +36,33 @@ func TestCreateInitramfs(t *testing.T) {
 	}
 
 	tmp777 := filepath.Join(dir, "tmp777")
-	if err := os.MkdirAll(tmp777, 0o777); err != nil {
-		t.Error(err)
-	}
+	_ = os.MkdirAll(tmp777, 0o777)
+	tmp400 := filepath.Join(dir, "tmp400")
+	_ = os.MkdirAll(tmp400, 0o400)
+
+	somefile := filepath.Join(dir, "somefile")
+	somefile2 := filepath.Join(dir, "somefile2")
+	_ = os.WriteFile(somefile, []byte("foobar"), 0o777)
+	_ = os.WriteFile(somefile2, []byte("spongebob"), 0o777)
+
+	cwd, _ := os.Getwd()
 
 	l := ulogtest.Logger{TB: t}
 
 	for i, tt := range []struct {
 		name       string
 		opts       Opts
-		want       string
+		errs       []error
 		validators []itest.ArchiveValidator
 	}{
 		{
-			name: "BB archive with ls and init",
+			name: "BB archive",
 			opts: Opts{
-				Env:             golang.Default(golang.DisableCGO()),
-				TempDir:         dir,
-				ExtraFiles:      nil,
-				UseExistingInit: false,
-				InitCmd:         "init",
-				DefaultShell:    "ls",
-				UrootSource:     urootpath,
+				Env:          golang.Default(golang.DisableCGO()),
+				TempDir:      dir,
+				InitCmd:      "init",
+				DefaultShell: "ls",
+				UrootSource:  urootpath,
 				Commands: []Commands{
 					{
 						Builder: builder.BusyBox,
@@ -67,7 +73,6 @@ func TestCreateInitramfs(t *testing.T) {
 					},
 				},
 			},
-			want: "",
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "bbin/bb"},
 				itest.HasRecord{R: cpio.Symlink("bbin/init", "bb")},
@@ -82,7 +87,7 @@ func TestCreateInitramfs(t *testing.T) {
 				InitCmd:      "init",
 				DefaultShell: "",
 			},
-			want: "temp dir \"\" must exist: stat : no such file or directory",
+			errs: []error{os.ErrNotExist},
 			validators: []itest.ArchiveValidator{
 				itest.IsEmpty{},
 			},
@@ -92,9 +97,185 @@ func TestCreateInitramfs(t *testing.T) {
 			opts: Opts{
 				TempDir: dir,
 			},
-			want: "",
 			validators: []itest.ArchiveValidator{
 				itest.MissingFile{Path: "bbin/bb"},
+			},
+		},
+		{
+			name: "files",
+			opts: Opts{
+				TempDir: dir,
+				ExtraFiles: []string{
+					somefile + ":etc/somefile",
+					somefile2 + ":etc/somefile2",
+					somefile,
+					// Empty is ignored.
+					"",
+					"uroot_test.go",
+					filepath.Join(cwd, "uroot_test.go"),
+					// Parent directory is created.
+					somefile + ":somedir/somefile",
+				},
+			},
+			validators: []itest.ArchiveValidator{
+				itest.MissingFile{Path: "bbin/bb"},
+				itest.HasContent{Path: "etc/somefile", Content: "foobar"},
+				itest.HasContent{Path: somefile, Content: "foobar"},
+				itest.HasContent{Path: "etc/somefile2", Content: "spongebob"},
+				// TODO: This behavior is weird.
+				itest.HasFile{Path: "uroot_test.go"},
+				itest.HasFile{Path: filepath.Join(cwd, "uroot_test.go")},
+				itest.HasDir{Path: "somedir"},
+				itest.HasContent{Path: "somedir/somefile", Content: "foobar"},
+			},
+		},
+		{
+			name: "files conflict",
+			opts: Opts{
+				TempDir: dir,
+				ExtraFiles: []string{
+					somefile + ":etc/somefile",
+					somefile2 + ":etc/somefile",
+				},
+			},
+			errs: []error{os.ErrExist},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "file does not exist",
+			opts: Opts{
+				TempDir: dir,
+				ExtraFiles: []string{
+					filepath.Join(dir, "doesnotexist") + ":etc/somefile",
+				},
+			},
+			errs: []error{os.ErrNotExist},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		/* TODO: case is broken.
+		{
+			name: "files invalid syntax 1",
+			opts: Opts{
+				TempDir: dir,
+				ExtraFiles: []string{
+					":etc/somefile",
+				},
+			},
+			//errs: []error{os.ErrExist},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		*/
+		/* TODO: case is broken.
+		{
+			name: "files invalid syntax 2",
+			opts: Opts{
+				TempDir: dir,
+				ExtraFiles: []string{
+					somefile + ":",
+				},
+			},
+			//errs: []error{os.ErrExist},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		*/
+		// TODO: files are directories.
+		{
+			name: "file conflicts with init",
+			opts: Opts{
+				TempDir: dir,
+				InitCmd: "/bin/systemd",
+				ExtraFiles: []string{
+					somefile + ":init",
+				},
+			},
+			errs: []error{os.ErrExist, errInitSymlink},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "file conflicts with uinit flags",
+			opts: Opts{
+				TempDir:   dir,
+				UinitArgs: []string{"-foo", "-bar"},
+				ExtraFiles: []string{
+					somefile + ":etc/uinit.flags",
+				},
+			},
+			errs: []error{os.ErrExist, errUinitArgs},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "file conflicts with uinit",
+			opts: Opts{
+				TempDir:  dir,
+				UinitCmd: "/bin/systemd",
+				ExtraFiles: []string{
+					somefile + ":bin/uinit",
+				},
+			},
+			errs: []error{os.ErrExist, errUinitSymlink},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "file conflicts with sh",
+			opts: Opts{
+				TempDir:      dir,
+				DefaultShell: "/bin/systemd",
+				ExtraFiles: []string{
+					somefile + ":bin/sh",
+				},
+			},
+			errs: []error{os.ErrExist, errDefaultshSymlink},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "file conflicts with defaultsh",
+			opts: Opts{
+				TempDir:      dir,
+				DefaultShell: "/bin/systemd",
+				ExtraFiles: []string{
+					somefile + ":bin/defaultsh",
+				},
+			},
+			errs: []error{os.ErrExist, errDefaultshSymlink},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "file does not conflict if default files not specified",
+			opts: Opts{
+				TempDir: dir,
+				// No DefaultShell, Init, or UinitCmd.
+				ExtraFiles: []string{
+					somefile + ":bin/defaultsh",
+					somefile + ":bin/sh",
+					somefile + ":bin/uinit",
+					somefile + ":etc/uinit.flags",
+					somefile + ":init",
+				},
+			},
+			validators: []itest.ArchiveValidator{
+				itest.HasContent{Path: "bin/defaultsh", Content: "foobar"},
+				itest.HasContent{Path: "bin/sh", Content: "foobar"},
+				itest.HasContent{Path: "bin/uinit", Content: "foobar"},
+				itest.HasContent{Path: "etc/uinit.flags", Content: "foobar"},
+				itest.HasContent{Path: "init", Content: "foobar"},
 			},
 		},
 		{
@@ -114,18 +295,30 @@ func TestCreateInitramfs(t *testing.T) {
 					},
 				},
 			},
-			want: "could not create symlink from \"init\" to \"foobar\": command or path \"foobar\" not included in u-root build: specify -initcmd=\"\" to ignore this error and build without an init (or, did you specify a list, and are you missing github.com/u-root/u-root/cmds/core/init?)",
+			errs: []error{errSymlink, errInitSymlink},
 			validators: []itest.ArchiveValidator{
 				itest.IsEmpty{},
 			},
 		},
+		/* TODO: case broken.
+		{
+			name: "init not resolvable",
+			opts: Opts{
+				TempDir: dir,
+				InitCmd: "init",
+			},
+			errs: []error{errSymlink, errInitSymlink},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		*/
 		{
 			name: "init symlinked to absolute path",
 			opts: Opts{
 				TempDir: dir,
 				InitCmd: "/bin/systemd",
 			},
-			want: "",
 			validators: []itest.ArchiveValidator{
 				itest.HasRecord{R: cpio.Symlink("init", "bin/systemd")},
 			},
@@ -157,7 +350,6 @@ func TestCreateInitramfs(t *testing.T) {
 					},
 				},
 			},
-			want: "",
 			validators: []itest.ArchiveValidator{
 				itest.HasRecord{R: cpio.Symlink("init", "bbin/init")},
 
@@ -173,13 +365,44 @@ func TestCreateInitramfs(t *testing.T) {
 				itest.HasFile{Path: "bin/dd"},
 			},
 		},
+		{
+			name: "glob fail",
+			opts: Opts{
+				Env:         golang.Default(golang.DisableCGO()),
+				TempDir:     dir,
+				UrootSource: urootpath,
+				Commands:    BinaryCmds("github.com/u-root/u-root/cmds/notexist/*"),
+			},
+			errs: []error{errResolvePackage},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "tmp not writable",
+			opts: Opts{
+				Env:         golang.Default(golang.DisableCGO()),
+				TempDir:     tmp400,
+				UrootSource: urootpath,
+				Commands:    BinaryCmds("github.com/u-root/u-root/cmds/core/..."),
+			},
+			errs: []error{os.ErrPermission},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
 	} {
 		t.Run(fmt.Sprintf("Test %d [%s]", i, tt.name), func(t *testing.T) {
 			archive := inMemArchive{cpio.InMemArchive()}
 			tt.opts.OutputFile = archive
-			// Compare error type or error string.
-			if err := CreateInitramfs(l, tt.opts); (err != nil && err.Error() != tt.want) || (len(tt.want) > 0 && err == nil) {
-				t.Errorf("CreateInitramfs(%v) = %v, want %v", tt.opts, err, tt.want)
+			err := CreateInitramfs(l, tt.opts)
+			for _, want := range tt.errs {
+				if !errors.Is(err, want) {
+					t.Errorf("CreateInitramfs = %v, want %v", err, want)
+				}
+			}
+			if err != nil && len(tt.errs) == 0 {
+				t.Errorf("CreateInitramfs = %v, want %v", err, nil)
 			}
 
 			for _, v := range tt.validators {
