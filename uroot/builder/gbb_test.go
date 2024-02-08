@@ -18,7 +18,7 @@ func TestGBBBuild(t *testing.T) {
 	opts := Opts{
 		Env: golang.Default(golang.DisableCGO()),
 		Packages: []string{
-			"../test/foo",
+			"../../cmd/mkuimage",
 		},
 		TempDir:   dir,
 		BinaryDir: "bbin",
@@ -31,7 +31,7 @@ func TestGBBBuild(t *testing.T) {
 	}
 
 	mustContain := []string{
-		"bbin/foo",
+		"bbin/mkuimage",
 		"bbin/bb",
 	}
 	for _, name := range mustContain {
