@@ -30,11 +30,6 @@ func TestCreateInitramfs(t *testing.T) {
 	dir := t.TempDir()
 	syscall.Umask(0)
 
-	urootpath, err := filepath.Abs("../../")
-	if err != nil {
-		t.Fatalf("failure to set up test: %v", err)
-	}
-
 	tmp777 := filepath.Join(dir, "tmp777")
 	_ = os.MkdirAll(tmp777, 0o777)
 	tmp400 := filepath.Join(dir, "tmp400")
@@ -62,7 +57,6 @@ func TestCreateInitramfs(t *testing.T) {
 				TempDir:      dir,
 				InitCmd:      "init",
 				DefaultShell: "ls",
-				UrootSource:  urootpath,
 				Commands: []Commands{
 					{
 						Builder: builder.Busybox,
@@ -285,7 +279,6 @@ func TestCreateInitramfs(t *testing.T) {
 				TempDir:      dir,
 				DefaultShell: "zoocar",
 				InitCmd:      "foobar",
-				UrootSource:  urootpath,
 				Commands: []Commands{
 					{
 						Builder: builder.Binary,
@@ -332,7 +325,6 @@ func TestCreateInitramfs(t *testing.T) {
 				UseExistingInit: false,
 				InitCmd:         "init",
 				DefaultShell:    "ls",
-				UrootSource:     urootpath,
 				Commands: []Commands{
 					{
 						Builder: builder.Busybox,
@@ -368,10 +360,9 @@ func TestCreateInitramfs(t *testing.T) {
 		{
 			name: "glob fail",
 			opts: Opts{
-				Env:         golang.Default(golang.DisableCGO()),
-				TempDir:     dir,
-				UrootSource: urootpath,
-				Commands:    BinaryCmds("github.com/u-root/u-root/cmds/notexist/*"),
+				Env:      golang.Default(golang.DisableCGO()),
+				TempDir:  dir,
+				Commands: BinaryCmds("github.com/u-root/u-root/cmds/notexist/*"),
 			},
 			errs: []error{errResolvePackage},
 			validators: []itest.ArchiveValidator{
@@ -381,10 +372,9 @@ func TestCreateInitramfs(t *testing.T) {
 		{
 			name: "tmp not writable",
 			opts: Opts{
-				Env:         golang.Default(golang.DisableCGO()),
-				TempDir:     tmp400,
-				UrootSource: urootpath,
-				Commands:    BinaryCmds("github.com/u-root/u-root/cmds/core/..."),
+				Env:      golang.Default(golang.DisableCGO()),
+				TempDir:  tmp400,
+				Commands: BinaryCmds("github.com/u-root/u-root/cmds/core/..."),
 			},
 			errs: []error{os.ErrPermission},
 			validators: []itest.ArchiveValidator{
