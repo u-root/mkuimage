@@ -5,6 +5,7 @@
 package builder
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
@@ -13,8 +14,6 @@ import (
 )
 
 func TestBinaryBuild(t *testing.T) {
-	dir := t.TempDir()
-
 	opts := Opts{
 		Env: golang.Default(golang.DisableCGO()),
 		Packages: []string{
@@ -23,9 +22,7 @@ func TestBinaryBuild(t *testing.T) {
 			"github.com/u-root/u-root/cmds/core/init",
 			"cmd/test2json",
 		},
-		TempDir:   dir,
-		BinaryDir: "bbin",
-		BuildOpts: &golang.BuildOpts{},
+		TempDir: t.TempDir(),
 	}
 	af := initramfs.NewFiles()
 	var b BinaryBuilder
@@ -34,13 +31,60 @@ func TestBinaryBuild(t *testing.T) {
 	}
 
 	mustContain := []string{
-		"bbin/elvish",
-		"bbin/mkuimage",
-		"bbin/init",
+		"bin/elvish",
+		"bin/mkuimage",
+		"bin/test2json",
+		"bin/init",
 	}
 	for _, name := range mustContain {
 		if !af.Contains(name) {
 			t.Errorf("expected files to include %q; archive: %v", name, af)
+		}
+	}
+}
+
+func TestBinaryBuildError(t *testing.T) {
+	for _, tt := range []struct {
+		opts Opts
+		want error
+	}{
+		{
+			opts: Opts{
+				Env: golang.Default(golang.DisableCGO()),
+				Packages: []string{
+					// Does not exist.
+					"../../cmd/foobar",
+				},
+				TempDir:   t.TempDir(),
+				BinaryDir: "bbin",
+			},
+			want: ErrNoGoFiles,
+		},
+		{
+			opts: Opts{
+				Env: golang.Default(golang.DisableCGO()),
+				Packages: []string{
+					"../../cmd/mkuimage",
+				},
+				BinaryDir: "bbin",
+			},
+			want: ErrTempDirMissing,
+		},
+		{
+			opts: Opts{
+				TempDir: t.TempDir(),
+				Packages: []string{
+					"../../cmd/mkuimage",
+				},
+				BinaryDir: "bbin",
+			},
+			want: ErrEnvMissing,
+		},
+	} {
+		af := initramfs.NewFiles()
+		var b BinaryBuilder
+		if err := b.Build(ulogtest.Logger{TB: t}, af, tt.opts); !errors.Is(err, tt.want) {
+			t.Errorf("Build = %v, want %v", err, tt.want)
 		}
 	}
 }

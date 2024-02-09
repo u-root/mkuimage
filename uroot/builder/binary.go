@@ -31,7 +31,7 @@ func dirFor(env *golang.Environ, pkg string) (string, error) {
 		}
 	}
 	if dir == "" {
-		return "", fmt.Errorf("could not find package directory for %q", pkg)
+		return "", fmt.Errorf("%w for %q", ErrNoGoFiles, pkg)
 	}
 	return dir, nil
 }
@@ -49,10 +49,18 @@ func (BinaryBuilder) DefaultBinaryDir() string {
 }
 
 // Build implements Builder.Build.
-func (BinaryBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error {
+func (b BinaryBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error {
 	if opts.Env == nil {
-		return fmt.Errorf("must specify Go build environment")
+		return ErrEnvMissing
 	}
+	if opts.TempDir == "" {
+		return ErrTempDirMissing
+	}
+	binaryDir := opts.BinaryDir
+	if binaryDir == "" {
+		binaryDir = b.DefaultBinaryDir()
+	}
+
 	result := make(chan error, len(opts.Packages))
 
 	var wg sync.WaitGroup
@@ -67,7 +75,7 @@ func (BinaryBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error 
 			}
 			result <- opts.Env.BuildDir(
 				dir,
-				filepath.Join(opts.TempDir, opts.BinaryDir, filepath.Base(p)),
+				filepath.Join(opts.TempDir, binaryDir, filepath.Base(p)),
 				opts.BuildOpts)
 		}(pkg)
 	}

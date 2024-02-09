@@ -7,6 +7,8 @@
 package builder
 
 import (
+	"errors"
+
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/uroot/initramfs"
 	"github.com/u-root/uio/ulog"
@@ -15,8 +17,16 @@ import (
 var (
 	// Busybox is a shared GBBBuilder instance.
 	Busybox = GBBBuilder{}
+
 	// Binary is a shared BinaryBuilder instance.
 	Binary = BinaryBuilder{}
+)
+
+// Possible build errors.
+var (
+	ErrEnvMissing     = errors.New("must specify Go build environment")
+	ErrTempDirMissing = errors.New("must supply temporary directory for build")
+	ErrNoGoFiles      = errors.New("could not find package directory")
 )
 
 // Opts are options passed to the Builder.Build function.

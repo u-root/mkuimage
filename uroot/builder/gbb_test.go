@@ -5,9 +5,12 @@
 package builder
 
 import (
+	"errors"
+	"os"
 	"testing"
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
+	"github.com/u-root/mkuimage/cpio"
 	"github.com/u-root/mkuimage/uroot/initramfs"
 	"github.com/u-root/uio/ulog/ulogtest"
 )
@@ -20,9 +23,7 @@ func TestGBBBuild(t *testing.T) {
 		Packages: []string{
 			"../../cmd/mkuimage",
 		},
-		TempDir:   dir,
-		BinaryDir: "bbin",
-		BuildOpts: &golang.BuildOpts{},
+		TempDir: dir,
 	}
 	af := initramfs.NewFiles()
 	var gbb GBBBuilder
@@ -37,6 +38,87 @@ func TestGBBBuild(t *testing.T) {
 	for _, name := range mustContain {
 		if !af.Contains(name) {
 			t.Errorf("expected files to include %q; archive: %v", name, af)
+		}
+	}
+}
+
+func TestGBBBuildError(t *testing.T) {
+	for _, tt := range []struct {
+		gbb   GBBBuilder
+		files []cpio.Record
+		opts  Opts
+		want  error
+	}{
+		{
+			opts: Opts{
+				Env: golang.Default(golang.DisableCGO()),
+				Packages: []string{
+					"../../cmd/mkuimage",
+				},
+				BinaryDir: "bbin",
+			},
+			want: ErrTempDirMissing,
+		},
+		{
+			opts: Opts{
+				TempDir: t.TempDir(),
+				Packages: []string{
+					"../../cmd/mkuimage",
+				},
+				BinaryDir: "bbin",
+			},
+			want: ErrEnvMissing,
+		},
+		{
+			opts: Opts{
+				Env:     golang.Default(golang.DisableCGO()),
+				TempDir: t.TempDir(),
+				Packages: []string{
+					"../../cmd/mkuimage",
+				},
+				BinaryDir: "bbin",
+			},
+			files: []cpio.Record{
+				cpio.StaticFile("bbin/bb", "", 0o777),
+			},
+			want: os.ErrExist,
+		},
+		{
+			opts: Opts{
+				Env:     golang.Default(golang.DisableCGO()),
+				TempDir: t.TempDir(),
+				Packages: []string{
+					"../../cmd/mkuimage",
+				},
+				BinaryDir: "bbin",
+			},
+			files: []cpio.Record{
+				cpio.StaticFile("bbin/mkuimage", "", 0o777),
+			},
+			want: os.ErrExist,
+		},
+		{
+			opts: Opts{
+				Env:     golang.Default(golang.DisableCGO()),
+				TempDir: t.TempDir(),
+				Packages: []string{
+					"../../cmd/mkuimage",
+				},
+				BinaryDir: "bbin",
+			},
+			files: []cpio.Record{
+				cpio.StaticFile("bbin/mkuimage", "", 0o777),
+			},
+			gbb:  GBBBuilder{ShellBang: true},
+			want: os.ErrExist,
+		},
+	} {
+		af := initramfs.NewFiles()
+		for _, f := range tt.files {
+			_ = af.AddRecord(f)
+		}
+		if err := tt.gbb.Build(ulogtest.Logger{TB: t}, af, tt.opts); !errors.Is(err, tt.want) {
+			t.Errorf("Build = %v, want %v", err, tt.want)
 		}
 	}
 }
