@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/hugelgupf/go-shlex v0.0.0-20200702092117-c80c9d0918fa
-	github.com/u-root/gobusybox/src v0.0.0-20231228173702-b69f654846aa
+	github.com/u-root/gobusybox/src v0.0.0-20240209041341-8c409c9832aa
 	github.com/u-root/u-root v0.12.0
 	github.com/u-root/uio v0.0.0-20240118234441-a3c409a6018e
 	golang.org/x/sys v0.16.0
@@ -14,8 +14,6 @@ require (
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/goterm v0.0.0-20200907032337-555d40f16ae2 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/insomniacslk/dhcp v0.0.0-20231206064809-8c70d406f6d2 // indirect
 	github.com/josharian/native v1.1.0 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
