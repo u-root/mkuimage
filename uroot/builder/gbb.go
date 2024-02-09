@@ -50,15 +50,16 @@ func (GBBBuilder) DefaultBinaryDir() string {
 func (b GBBBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error {
 	// Build the busybox binary.
 	if len(opts.TempDir) == 0 {
-		return fmt.Errorf("opts.TempDir is empty")
+		return ErrTempDirMissing
+	}
+	if opts.Env == nil {
+		return ErrEnvMissing
 	}
 	bbPath := filepath.Join(opts.TempDir, "bb")
 
-	if len(opts.BinaryDir) == 0 {
-		return fmt.Errorf("must specify binary directory")
-	}
-	if opts.Env == nil {
-		return fmt.Errorf("must specify Go build environment")
+	binaryDir := opts.BinaryDir
+	if binaryDir == "" {
+		binaryDir = b.DefaultBinaryDir()
 	}
 
 	bopts := &bb.Opts{
@@ -68,12 +69,7 @@ func (b GBBBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error {
 		BinaryPath:   bbPath,
 		GoBuildOpts:  opts.BuildOpts,
 	}
-
 	if err := bb.BuildBusybox(l, bopts); err != nil {
-		// Print the actual error. This may contain a suggestion for
-		// what to do, actually.
-		l.Printf("Gobusybox error: %v", err)
-
 		// Return some instructions for the user; this is printed last in the u-root tool.
 		//
 		// TODO: yeah, this isn't a good way to do error handling. The
@@ -83,12 +79,12 @@ func (b GBBBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error {
 		var errGopath *bb.ErrGopathBuild
 		var errGomod *bb.ErrModuleBuild
 		if errors.As(err, &errGopath) {
-			return fmt.Errorf("preserving bb generated source directory at %s due to error. To reproduce build, `cd %s` and `GO111MODULE=off GOPATH=%s go build`: %v", opts.TempDir, errGopath.CmdDir, errGopath.GOPATH, err)
+			return fmt.Errorf("preserving bb generated source directory at %s due to error. To reproduce build, `cd %s` and `GO111MODULE=off GOPATH=%s go build`: %w", opts.TempDir, errGopath.CmdDir, errGopath.GOPATH, err)
 		}
 		if errors.As(err, &errGomod) {
-			return fmt.Errorf("preserving bb generated source directory at %s due to error. To debug build, `cd %s` and use `go build` to build, or `go mod [why|tidy|graph]` to debug dependencies, or `go list -m all` to list all dependency versions:\n%v", opts.TempDir, errGomod.CmdDir, err)
+			return fmt.Errorf("preserving bb generated source directory at %s due to error. To debug build, `cd %s` and use `go build` to build, or `go mod [why|tidy|graph]` to debug dependencies, or `go list -m all` to list all dependency versions:\n%w", opts.TempDir, errGomod.CmdDir, err)
 		}
-		return fmt.Errorf("preserving bb generated source directory at %s due to error:\n%v", opts.TempDir, err)
+		return fmt.Errorf("preserving bb generated source directory at %s due to error:\n%w", opts.TempDir, err)
 	}
 
 	if err := af.AddFile(bbPath, "bbin/bb"); err != nil {
@@ -105,10 +101,10 @@ func (b GBBBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error {
 		// Or add a #! file if b.ShellBang is set ...
 		if b.ShellBang {
 			b := path.Base(pkg)
-			if err := af.AddRecord(cpio.StaticFile(filepath.Join(opts.BinaryDir, b), "#!/bbin/bb #!"+b+"\n", 0o755)); err != nil {
+			if err := af.AddRecord(cpio.StaticFile(filepath.Join(binaryDir, b), "#!/bbin/bb #!"+b+"\n", 0o755)); err != nil {
 				return err
 			}
-		} else if err := af.AddRecord(cpio.Symlink(filepath.Join(opts.BinaryDir, path.Base(pkg)), "bb")); err != nil {
+		} else if err := af.AddRecord(cpio.Symlink(filepath.Join(binaryDir, path.Base(pkg)), "bb")); err != nil {
 			return err
 		}
 	}
