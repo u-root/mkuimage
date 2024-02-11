@@ -184,11 +184,11 @@ type Opts struct {
 	SkipLDD bool
 
 	// OutputFile is the archive output file.
-	OutputFile initramfs.Writer
+	OutputFile initramfs.WriteOpener
 
 	// BaseArchive is an existing initramfs to include in the resulting
 	// initramfs.
-	BaseArchive initramfs.Reader
+	BaseArchive initramfs.ReadOpener
 
 	// UseExistingInit determines whether the existing init from
 	// BaseArchive should be used.

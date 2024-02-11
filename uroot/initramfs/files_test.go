@@ -7,7 +7,6 @@ package initramfs
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -16,6 +15,15 @@ import (
 	"github.com/u-root/mkuimage/cpio"
 	"github.com/u-root/uio/uio"
 )
+
+func archive(tb testing.TB, rs ...cpio.Record) *cpio.Archive {
+	tb.Helper()
+	a, err := cpio.ArchiveFromRecords(rs)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return a
+}
 
 func TestFilesAddFileNoFollow(t *testing.T) {
 	regularFile, err := os.CreateTemp("", "archive-files-add-file")
@@ -403,37 +411,9 @@ func TestFilesfillInParent(t *testing.T) {
 	}
 }
 
-type MockArchiver struct {
-	Records      Records
-	FinishCalled bool
-	BaseArchive  []cpio.Record
-}
-
-func (ma *MockArchiver) WriteRecord(r cpio.Record) error {
-	if _, ok := ma.Records[r.Name]; ok {
-		return fmt.Errorf("file exists")
-	}
-	ma.Records[r.Name] = r
-	return nil
-}
-
-func (ma *MockArchiver) Finish() error {
-	ma.FinishCalled = true
-	return nil
-}
-
-func (ma *MockArchiver) ReadRecord() (cpio.Record, error) {
-	if len(ma.BaseArchive) > 0 {
-		next := ma.BaseArchive[0]
-		ma.BaseArchive = ma.BaseArchive[1:]
-		return next, nil
-	}
-	return cpio.Record{}, io.EOF
-}
-
 type Records map[string]cpio.Record
 
-func RecordsEqual(r1, r2 Records, recordEqual func(cpio.Record, cpio.Record) bool) bool {
+func recordsEqual(r1, r2 Records, recordEqual func(cpio.Record, cpio.Record) bool) bool {
 	for name, s1 := range r1 {
 		s2, ok := r2[name]
 		if !ok {
@@ -460,11 +440,11 @@ func sameNameModeContent(r1 cpio.Record, r2 cpio.Record) bool {
 
 func TestOptsWrite(t *testing.T) {
 	for i, tt := range []struct {
-		desc string
-		opts *Opts
-		ma   *MockArchiver
-		want Records
-		err  error
+		desc   string
+		opts   *Opts
+		output *cpio.Archive
+		want   Records
+		err    error
 	}{
 		{
 			desc: "no conflicts, just records",
@@ -474,18 +454,19 @@ func TestOptsWrite(t *testing.T) {
 						"foo": cpio.Symlink("foo", "elsewhere"),
 					},
 				},
-			},
-			ma: &MockArchiver{
-				Records: make(Records),
-				BaseArchive: []cpio.Record{
+				BaseArchive: &Archive{Archive: archive(t,
 					cpio.Directory("etc", 0o777),
 					cpio.Directory("etc/nginx", 0o777),
-				},
+				)},
+			},
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
 			},
 			want: Records{
-				"foo":       cpio.Symlink("foo", "elsewhere"),
-				"etc":       cpio.Directory("etc", 0o777),
-				"etc/nginx": cpio.Directory("etc/nginx", 0o777),
+				"foo":        cpio.Symlink("foo", "elsewhere"),
+				"etc":        cpio.Directory("etc", 0o777),
+				"etc/nginx":  cpio.Directory("etc/nginx", 0o777),
+				cpio.Trailer: cpio.TrailerRecord,
 			},
 		},
 		{
@@ -496,15 +477,16 @@ func TestOptsWrite(t *testing.T) {
 						"etc": cpio.Symlink("etc", "whatever"),
 					},
 				},
-			},
-			ma: &MockArchiver{
-				Records: make(Records),
-				BaseArchive: []cpio.Record{
+				BaseArchive: &Archive{Archive: archive(t,
 					cpio.Directory("etc", 0o777),
-				},
+				)},
+			},
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
 			},
 			want: Records{
-				"etc": cpio.Symlink("etc", "whatever"),
+				"etc":        cpio.Symlink("etc", "whatever"),
+				cpio.Trailer: cpio.TrailerRecord,
 			},
 		},
 		{
@@ -515,14 +497,16 @@ func TestOptsWrite(t *testing.T) {
 						"foo/bar/baz": cpio.Symlink("foo/bar/baz", "elsewhere"),
 					},
 				},
+				BaseArchive: nil,
 			},
-			ma: &MockArchiver{
-				Records: make(Records),
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
 			},
 			want: Records{
 				"foo":         cpio.Directory("foo", 0o755),
 				"foo/bar":     cpio.Directory("foo/bar", 0o755),
 				"foo/bar/baz": cpio.Symlink("foo/bar/baz", "elsewhere"),
+				cpio.Trailer:  cpio.TrailerRecord,
 			},
 		},
 		{
@@ -534,14 +518,16 @@ func TestOptsWrite(t *testing.T) {
 						"foo/bar/baz": cpio.Symlink("foo/bar/baz", "elsewhere"),
 					},
 				},
+				BaseArchive: nil,
 			},
-			ma: &MockArchiver{
-				Records: make(Records),
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
 			},
 			want: Records{
 				"foo":         cpio.Directory("foo", 0o755),
 				"foo/bar":     cpio.Directory("foo/bar", 0o444),
 				"foo/bar/baz": cpio.Symlink("foo/bar/baz", "elsewhere"),
+				cpio.Trailer:  cpio.TrailerRecord,
 			},
 		},
 		{
@@ -553,20 +539,21 @@ func TestOptsWrite(t *testing.T) {
 						"exists":  cpio.Directory("exists", 0o777),
 					},
 				},
-			},
-			ma: &MockArchiver{
-				Records: make(Records),
-				BaseArchive: []cpio.Record{
+				BaseArchive: &Archive{Archive: archive(t,
 					cpio.Directory("etc", 0o755),
 					cpio.Directory("foo", 0o444),
 					cpio.Directory("exists", 0),
-				},
+				)},
+			},
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
 			},
 			want: Records{
-				"etc":     cpio.Directory("etc", 0o755),
-				"exists":  cpio.Directory("exists", 0o777),
-				"foo":     cpio.Directory("foo", 0o444),
-				"foo/bar": cpio.Symlink("foo/bar", "elsewhere"),
+				"etc":        cpio.Directory("etc", 0o755),
+				"exists":     cpio.Directory("exists", 0o777),
+				"foo":        cpio.Directory("foo", 0o444),
+				"foo/bar":    cpio.Symlink("foo/bar", "elsewhere"),
+				cpio.Trailer: cpio.TrailerRecord,
 			},
 		},
 		{
@@ -575,15 +562,16 @@ func TestOptsWrite(t *testing.T) {
 				Files: &Files{
 					Records: map[string]cpio.Record{},
 				},
-			},
-			ma: &MockArchiver{
-				Records: make(Records),
-				BaseArchive: []cpio.Record{
+				BaseArchive: &Archive{Archive: archive(t,
 					cpio.StaticFile("init", "boo", 0o555),
-				},
+				)},
+			},
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
 			},
 			want: Records{
-				"init": cpio.StaticFile("init", "boo", 0o555),
+				"init":       cpio.StaticFile("init", "boo", 0o555),
+				cpio.Trailer: cpio.TrailerRecord,
 			},
 		},
 		{
@@ -594,16 +582,17 @@ func TestOptsWrite(t *testing.T) {
 						"init": cpio.StaticFile("init", "bar", 0o444),
 					},
 				},
-			},
-			ma: &MockArchiver{
-				Records: make(Records),
-				BaseArchive: []cpio.Record{
+				BaseArchive: &Archive{Archive: archive(t,
 					cpio.StaticFile("init", "boo", 0o555),
-				},
+				)},
+			},
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
 			},
 			want: Records{
-				"init":  cpio.StaticFile("init", "bar", 0o444),
-				"inito": cpio.StaticFile("inito", "boo", 0o555),
+				"init":       cpio.StaticFile("init", "bar", 0o444),
+				"inito":      cpio.StaticFile("inito", "boo", 0o555),
+				cpio.Trailer: cpio.TrailerRecord,
 			},
 		},
 		{
@@ -612,16 +601,17 @@ func TestOptsWrite(t *testing.T) {
 				Files: &Files{
 					Records: map[string]cpio.Record{},
 				},
+				BaseArchive: &Archive{Archive: archive(t,
+					cpio.StaticFile("init", "boo", 0o555),
+				)},
 				UseExistingInit: true,
 			},
-			ma: &MockArchiver{
-				Records: make(Records),
-				BaseArchive: []cpio.Record{
-					cpio.StaticFile("init", "boo", 0o555),
-				},
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
 			},
 			want: Records{
-				"init": cpio.StaticFile("init", "boo", 0o555),
+				"init":       cpio.StaticFile("init", "boo", 0o555),
+				cpio.Trailer: cpio.TrailerRecord,
 			},
 		},
 		{
@@ -632,32 +622,30 @@ func TestOptsWrite(t *testing.T) {
 						"init": cpio.StaticFile("init", "huh", 0o111),
 					},
 				},
+				BaseArchive: &Archive{Archive: archive(t,
+					cpio.StaticFile("init", "boo", 0o555),
+				)},
 				UseExistingInit: true,
 			},
-			ma: &MockArchiver{
-				Records: make(Records),
-				BaseArchive: []cpio.Record{
-					cpio.StaticFile("init", "boo", 0o555),
-				},
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
 			},
 			want: Records{
-				"init":  cpio.StaticFile("init", "boo", 0o555),
-				"inito": cpio.StaticFile("inito", "huh", 0o111),
+				"init":       cpio.StaticFile("init", "boo", 0o555),
+				"inito":      cpio.StaticFile("inito", "huh", 0o111),
+				cpio.Trailer: cpio.TrailerRecord,
 			},
 		},
 	} {
 		t.Run(fmt.Sprintf("Test %02d (%s)", i, tt.desc), func(t *testing.T) {
-			tt.opts.BaseArchive = tt.ma
-			tt.opts.OutputFile = tt.ma
+			tt.opts.OutputFile = &Archive{tt.output}
 
-			if err := Write(tt.opts); err != tt.err {
-				t.Errorf("Write() = %v, want %v", err, tt.err)
-			} else if err == nil && !tt.ma.FinishCalled {
-				t.Errorf("Finish wasn't called on archive")
+			if err := Write(tt.opts); !errors.Is(err, tt.err) {
+				t.Errorf("Write = %v, want %v", err, tt.err)
 			}
 
-			if !RecordsEqual(tt.ma.Records, tt.want, sameNameModeContent) {
-				t.Errorf("Write() = %v, want %v", tt.ma.Records, tt.want)
+			if !recordsEqual(tt.output.Files, tt.want, sameNameModeContent) {
+				t.Errorf("Write() = %v, want %v", tt.output.Files, tt.want)
 			}
 		})
 	}

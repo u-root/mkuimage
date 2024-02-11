@@ -15,16 +15,10 @@ import (
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
 	"github.com/u-root/mkuimage/uroot/builder"
+	"github.com/u-root/mkuimage/uroot/initramfs"
 	itest "github.com/u-root/mkuimage/uroot/initramfs/test"
 	"github.com/u-root/uio/ulog/ulogtest"
 )
-
-type inMemArchive struct {
-	*cpio.Archive
-}
-
-// Finish implements initramfs.Writer.Finish.
-func (inMemArchive) Finish() error { return nil }
 
 func TestCreateInitramfs(t *testing.T) {
 	dir := t.TempDir()
@@ -413,8 +407,8 @@ func TestCreateInitramfs(t *testing.T) {
 		},
 	} {
 		t.Run(fmt.Sprintf("Test %d [%s]", i, tt.name), func(t *testing.T) {
-			archive := inMemArchive{cpio.InMemArchive()}
-			tt.opts.OutputFile = archive
+			archive := cpio.InMemArchive()
+			tt.opts.OutputFile = &initramfs.Archive{Archive: archive}
 			err := CreateInitramfs(l, tt.opts)
 			for _, want := range tt.errs {
 				if !errors.Is(err, want) {
@@ -426,7 +420,7 @@ func TestCreateInitramfs(t *testing.T) {
 			}
 
 			for _, v := range tt.validators {
-				if err := v.Validate(archive.Archive); err != nil {
+				if err := v.Validate(archive); err != nil {
 					t.Errorf("validator failed: %v / archive:\n%s", err, archive)
 				}
 			}
