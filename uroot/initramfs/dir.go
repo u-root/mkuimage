@@ -7,42 +7,27 @@ package initramfs
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 
-	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
 )
 
-// DirArchiver implements Archiver for a directory.
-type DirArchiver struct{}
-
-// Reader implements Archiver.Reader.
-//
-// Currently unsupported for directories.
-func (da DirArchiver) Reader(io.ReaderAt) Reader {
-	return nil
+// Dir opens a Writer that writes all archive files to the given directory.
+type Dir struct {
+	Path string
 }
 
-// CreateDefault creates a tmpdir using os.MkdirTemp prefixed with mkuimage- or
-// mkuimage-GOOS-GOARCH- if available.
-func (da DirArchiver) CreateDefault(env *golang.Environ) (string, error) {
-	name := "mkuimage-"
-	if len(env.GOOS) != 0 && len(env.GOARCH) != 0 {
-		name = fmt.Sprintf("mkuimage-%s-%s-", env.GOOS, env.GOARCH)
-	}
-	return os.MkdirTemp("", name)
-}
+var _ WriteOpener = &Dir{}
 
 // OpenWriter implements Archiver.OpenWriter.
-func (da DirArchiver) OpenWriter(path string) (Writer, error) {
-	if len(path) == 0 {
+func (d *Dir) OpenWriter() (Writer, error) {
+	if len(d.Path) == 0 {
 		return nil, fmt.Errorf("path is required")
 	}
-	if err := os.MkdirAll(path, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
+	if err := os.MkdirAll(d.Path, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, err
 	}
-	return dirWriter{path}, nil
+	return dirWriter{d.Path}, nil
 }
 
 // dirWriter implements Writer.

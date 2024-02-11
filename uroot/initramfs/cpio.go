@@ -6,55 +6,72 @@ package initramfs
 
 import (
 	"fmt"
-	"io"
 	"os"
 
-	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
 )
 
-// CPIOArchiver is an implementation of Archiver for the cpio format.
-type CPIOArchiver struct {
-	cpio.RecordFormat
+// CPIOFile opens a Reader or Writer that reads/writes files from/to a CPIO archive at the given path.
+type CPIOFile struct {
+	Path string
 }
 
-// CreateDefault chooses /tmp/initramfs.cpio or /tmp/initramfs.GOOS_GOARCH.cpio
-// if available.
-func (ca CPIOArchiver) CreateDefault(env *golang.Environ) (string, error) {
-	if len(env.GOOS) == 0 || len(env.GOARCH) == 0 {
-		return "/tmp/initramfs.cpio", nil
-	}
-	return fmt.Sprintf("/tmp/initramfs.%s_%s.cpio", env.GOOS, env.GOARCH), nil
-}
+var _ ReadOpener = &CPIOFile{}
+var _ WriteOpener = &CPIOFile{}
 
-// OpenWriter opens `path` as the correct file type and returns an
-// Writer pointing to `path`.
-func (ca CPIOArchiver) OpenWriter(path string) (Writer, error) {
-	if len(path) == 0 {
+// OpenWriter opens c.Path for writing.
+func (c *CPIOFile) OpenWriter() (Writer, error) {
+	if len(c.Path) == 0 {
 		return nil, fmt.Errorf("path is required")
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	f, err := os.OpenFile(c.Path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return nil, err
 	}
-	return osWriter{ca.RecordFormat.Writer(f), f}, nil
+	return cpioWriter{cpio.Newc.Writer(f), f}, nil
+}
+
+// OpenReader opens c.Path for reading.
+func (c *CPIOFile) OpenReader() (cpio.RecordReader, error) {
+	if len(c.Path) == 0 {
+		return nil, fmt.Errorf("path is required")
+	}
+	f, err := os.Open(c.Path)
+	if err != nil {
+		return nil, err
+	}
+	return cpio.Newc.Reader(f), nil
+}
+
+// Archive opens a Reader that reads files from an in-memory archive.
+type Archive struct {
+	*cpio.Archive
+}
+
+var _ ReadOpener = &Archive{}
+
+// OpenWriter writes to the archive.
+func (a *Archive) OpenWriter() (Writer, error) {
+	return cpioWriter{a.Archive, nil}, nil
+}
+
+// OpenReader opens the archive for reading.
+func (a *Archive) OpenReader() (cpio.RecordReader, error) {
+	return a.Archive.Reader(), nil
 }
 
 // osWriter implements Writer.
-type osWriter struct {
+type cpioWriter struct {
 	cpio.RecordWriter
 
 	f *os.File
 }
 
 // Finish implements Writer.Finish.
-func (o osWriter) Finish() error {
+func (o cpioWriter) Finish() error {
 	err := cpio.WriteTrailer(o)
-	o.f.Close()
+	if o.f != nil {
+		o.f.Close()
+	}
 	return err
-}
-
-// Reader implements Archiver.Reader.
-func (ca CPIOArchiver) Reader(r io.ReaderAt) Reader {
-	return ca.RecordFormat.Reader(r)
 }

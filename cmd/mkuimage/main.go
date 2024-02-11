@@ -47,15 +47,15 @@ var (
 
 // Flags for u-root builder.
 var (
-	build, format, tmpDir, base, outputPath *string
-	uinitCmd, initCmd                       *string
-	defaultShell                            *string
-	useExistingInit                         *bool
-	noCommands                              *bool
-	extraFiles                              multiFlag
-	statsOutputPath                         *string
-	statsLabel                              *string
-	shellbang                               *bool
+	build, format, tmpDir, basePath, outputPath *string
+	uinitCmd, initCmd                           *string
+	defaultShell                                *string
+	useExistingInit                             *bool
+	noCommands                                  *bool
+	extraFiles                                  multiFlag
+	statsOutputPath                             *string
+	statsLabel                                  *string
+	shellbang                                   *bool
 	// For the new "filepath only" logic.
 	urootSourceDir *string
 )
@@ -74,7 +74,7 @@ func init() {
 
 	tmpDir = flag.String("tmpdir", "", "Temporary directory to put binaries in.")
 
-	base = flag.String("base", "", "Base archive to add files to. By default, this is a couple of directories like /bin, /etc, etc. u-root has a default internally supplied set of files; use base=/dev/null if you don't want any base files.")
+	basePath = flag.String("base", "", "Base archive to add files to. By default, this is a couple of directories like /bin, /etc, etc. u-root has a default internally supplied set of files; use base=/dev/null if you don't want any base files.")
 	useExistingInit = flag.Bool("useinit", false, "Use existing init from base archive (only if --base was specified).")
 	outputPath = flag.String("o", "", "Path to output initramfs file.")
 
@@ -253,6 +253,33 @@ func isRecommendedVersion(v string) bool {
 	return false
 }
 
+func getReader(format string, path string) initramfs.ReadOpener {
+	switch format {
+	case "cpio":
+		return &initramfs.CPIOFile{Path: path}
+	default:
+		return nil
+	}
+}
+
+func getWriter(format string, path string) initramfs.WriteOpener {
+	switch format {
+	case "cpio":
+		return &initramfs.CPIOFile{Path: path}
+	case "dir":
+		return &initramfs.Dir{Path: path}
+	default:
+		return nil
+	}
+}
+
+func defaultFile(env *golang.Environ) string {
+	if len(env.GOOS) == 0 || len(env.GOARCH) == 0 {
+		return "/tmp/initramfs.cpio"
+	}
+	return fmt.Sprintf("/tmp/initramfs.%s_%s.cpio", env.GOOS, env.GOARCH)
+}
+
 // Main is a separate function so defers are run on return, which they wouldn't
 // on exit.
 func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error {
@@ -269,34 +296,15 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 			v, recommendedVersions, recommendedVersions[0])
 	}
 
-	archiver, err := initramfs.GetArchiver(*format)
-	if err != nil {
-		return err
+	if *outputPath == "" && *format == "cpio" {
+		*outputPath = defaultFile(env)
 	}
+	output := getWriter(*format, *outputPath)
 
-	// Open the target initramfs file.
-	if *outputPath == "" {
-		*outputPath, err = archiver.CreateDefault(env)
-		if err != nil {
-			return err
-		}
-		l.Printf("Output path is %v", *outputPath)
-	}
-	w, err := archiver.OpenWriter(*outputPath)
-	if err != nil {
-		return err
-	}
-
-	var baseFile initramfs.Reader
-	if *base != "" {
-		bf, err := os.Open(*base)
-		if err != nil {
-			return err
-		}
-		defer bf.Close()
-		baseFile = archiver.Reader(bf)
-	} else {
-		baseFile = uroot.DefaultRamfs().Reader()
+	var base initramfs.ReadOpener
+	base = &initramfs.Archive{Archive: uroot.DefaultRamfs()}
+	if *basePath != "" {
+		base = getReader(*format, *basePath)
 	}
 
 	tempDir := *tmpDir
@@ -363,8 +371,8 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 		UrootSource:     *urootSourceDir,
 		TempDir:         tempDir,
 		ExtraFiles:      extraFiles,
-		OutputFile:      w,
-		BaseArchive:     baseFile,
+		OutputFile:      output,
+		BaseArchive:     base,
 		UseExistingInit: *useExistingInit,
 		InitCmd:         initCommand,
 		DefaultShell:    *defaultShell,

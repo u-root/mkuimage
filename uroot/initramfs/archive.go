@@ -6,54 +6,19 @@
 package initramfs
 
 import (
-	"fmt"
 	"io"
 
-	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
 )
 
-var (
-	// CPIO creates files in a CPIO file.
-	CPIO = CPIOArchiver{
-		RecordFormat: cpio.Newc,
-	}
-
-	// Dir writes "archived" files to a directory.
-	Dir = DirArchiver{}
-
-	// Archivers are the supported initramfs archivers at the moment.
-	//
-	// - cpio: writes the initramfs to a cpio.
-	// - dir:  writes the initramfs relative to a specified directory.
-	Archivers = map[string]Archiver{
-		"cpio": CPIO,
-		"dir":  Dir,
-	}
-)
-
-// Archiver is an archive format that builds an archive using a given set of
-// files.
-type Archiver interface {
-	// CreateDefault creates a default file that can be passed as path to OpenWriter.
-	CreateDefault(env *golang.Environ) (string, error)
-
-	// OpenWriter opens an archive writer at `path`.
-	OpenWriter(path string) (Writer, error)
-
-	// Reader returns a Reader that allows reading files from a file.
-	Reader(file io.ReaderAt) Reader
+// ReadOpener opens a cpio.RecordReader.
+type ReadOpener interface {
+	OpenReader() (cpio.RecordReader, error)
 }
 
-// GetArchiver finds a registered initramfs archiver by name.
-//
-// Good to use with command-line arguments.
-func GetArchiver(name string) (Archiver, error) {
-	archiver, ok := Archivers[name]
-	if !ok {
-		return nil, fmt.Errorf("couldn't find archival format %q", name)
-	}
-	return archiver, nil
+// WriteOpener opens a Writer.
+type WriteOpener interface {
+	OpenWriter() (Writer, error)
 }
 
 // Writer is an initramfs archive that files can be written to.
@@ -64,9 +29,6 @@ type Writer interface {
 	Finish() error
 }
 
-// Reader is an object that files can be read from.
-type Reader cpio.RecordReader
-
 // Opts are options for building an initramfs archive.
 type Opts struct {
 	// Files are the files to be included.
@@ -76,12 +38,12 @@ type Opts struct {
 	*Files
 
 	// OutputFile is the file to write to.
-	OutputFile Writer
+	OutputFile WriteOpener
 
 	// BaseArchive is an existing archive to add files to.
 	//
 	// BaseArchive may be nil.
-	BaseArchive Reader
+	BaseArchive ReadOpener
 
 	// UseExistingInit determines whether the init from BaseArchive is used
 	// or not, if BaseArchive is specified.
@@ -96,6 +58,10 @@ type Opts struct {
 func Write(opts *Opts) error {
 	// Write base archive.
 	if opts.BaseArchive != nil {
+		base, err := opts.BaseArchive.OpenReader()
+		if err != nil {
+			return err
+		}
 		transform := cpio.MakeReproducible
 
 		// Rename init to inito if user doesn't want the existing init.
@@ -114,7 +80,7 @@ func Write(opts *Opts) error {
 		}
 
 		for {
-			f, err := opts.BaseArchive.ReadRecord()
+			f, err := base.ReadRecord()
 			if err == io.EOF {
 				break
 			}
@@ -127,8 +93,12 @@ func Write(opts *Opts) error {
 		}
 	}
 
-	if err := opts.Files.WriteTo(opts.OutputFile); err != nil {
+	out, err := opts.OutputFile.OpenWriter()
+	if err != nil {
 		return err
 	}
-	return opts.OutputFile.Finish()
+	if err := opts.Files.WriteTo(out); err != nil {
+		return err
+	}
+	return out.Finish()
 }
