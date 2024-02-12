@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hugelgupf/go-shlex"
 	"github.com/u-root/gobusybox/src/pkg/bb/findpkg"
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
@@ -229,6 +230,256 @@ type Opts struct {
 	//
 	// This must be specified to have a default shell.
 	DefaultShell string
+}
+
+// Modifier modifies uimage options.
+type Modifier func(*Opts) error
+
+// OptionsFor will creates Opts from the given modifiers.
+func OptionsFor(mods ...Modifier) (*Opts, error) {
+	o := &Opts{
+		Env: golang.Default(),
+	}
+	if err := o.Apply(mods...); err != nil {
+		return nil, err
+	}
+	return o, nil
+}
+
+// Create creates an initramfs from the given options o.
+func (o *Opts) Create(logger ulog.Logger) error {
+	return CreateInitramfs(logger, *o)
+}
+
+// Apply modifies o with the given modifiers.
+func (o *Opts) Apply(mods ...Modifier) error {
+	for _, mod := range mods {
+		if mod != nil {
+			if err := mod(o); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// WithSkipLDD sets SkipLDD to true. If true, initramfs creation skips using
+// ldd to pick up dependencies from the local file system when resolving
+// ExtraFiles.
+//
+// Useful if you have all deps revision controlled and wish to ensure builds
+// are repeatable, and/or if the local machine's binaries use instructions
+// unavailable on the emulated CPU.
+//
+// If you turn this on but do not manually list all deps, affected binaries
+// will misbehave.
+func WithSkipLDD() Modifier {
+	return func(o *Opts) error {
+		o.SkipLDD = true
+		return nil
+	}
+}
+
+// WithEnv alters the Go build environment (e.g. build tags, GOARCH, GOOS env vars).
+func WithEnv(gopts ...golang.Opt) Modifier {
+	return func(o *Opts) error {
+		if o.Env == nil {
+			o.Env = golang.Default(gopts...)
+		} else {
+			o.Env.Apply(gopts...)
+		}
+		return nil
+	}
+}
+
+// WithFiles adds files to the archive.
+//
+// Shared library dependencies will automatically also be added to the archive
+// using ldd, unless WithSkipLDD is set.
+//
+// The following formats are allowed in the list:
+//
+//   - "/home/chrisko/foo:root/bar" adds the file from absolute path
+//     /home/chrisko/foo on the host at the relative root/bar in the archive.
+//   - "/home/foo" is equivalent to "/home/foo:home/foo".
+//   - "uroot_test.go" is equivalent to "uroot_test.go:uroot_test.go".
+func WithFiles(file ...string) Modifier {
+	return func(o *Opts) error {
+		o.ExtraFiles = append(o.ExtraFiles, file...)
+		return nil
+	}
+}
+
+// WithCommands adds Go commands to compile and add to the archive.
+//
+// b is the method of building -- as a busybox or a binary.
+//
+// Currently allowed formats for cmd:
+//
+//   - package imports; e.g. github.com/u-root/u-root/cmds/ls
+//   - globs of package imports; e.g. github.com/u-root/u-root/cmds/*
+//   - paths to package directories; e.g. $GOPATH/src/github.com/u-root/u-root/cmds/ls
+//   - globs of paths to package directories; e.g. ./cmds/*
+//
+// Directories may be relative or absolute, with or without globs.
+// Globs are resolved using filepath.Glob.
+func WithCommands(buildOpts *golang.BuildOpts, b builder.Builder, cmd ...string) Modifier {
+	return func(o *Opts) error {
+		o.AddCommands(Commands{
+			Builder:   b,
+			Packages:  cmd,
+			BuildOpts: buildOpts,
+		})
+		return nil
+	}
+}
+
+// WithBusyboxCommands adds Go commands to compile in a busybox and add to the
+// archive.
+//
+// If there were already busybox commands added to the archive, the given cmd
+// will be merged with them.
+//
+// Allowed formats for cmd are documented in [WithCommands].
+func WithBusyboxCommands(cmd ...string) Modifier {
+	return func(o *Opts) error {
+		o.AddBusyboxCommands(cmd...)
+		return nil
+	}
+}
+
+// WithBinaryCommands adds Go commands to compile as individual binaries and
+// add to the archive.
+//
+// Allowed formats for cmd are documented in [WithCommands].
+func WithBinaryCommands(cmd ...string) Modifier {
+	return WithCommands(nil, builder.Binary, cmd...)
+}
+
+// WithOutput sets the archive output file.
+func WithOutput(w initramfs.WriteOpener) Modifier {
+	return func(o *Opts) error {
+		o.OutputFile = w
+		return nil
+	}
+}
+
+// WithCPIOOutput sets the archive output file to be a CPIO created at the given path.
+func WithCPIOOutput(path string) Modifier {
+	if path == "" {
+		return nil
+	}
+	return WithOutput(&initramfs.CPIOFile{Path: path})
+}
+
+// WithBase is an existing initramfs to include in the resulting initramfs.
+func WithBase(base initramfs.ReadOpener) Modifier {
+	return func(o *Opts) error {
+		o.BaseArchive = base
+		return nil
+	}
+}
+
+// WithBaseFile is an existing initramfs read from a CPIO file at the given
+// path to include in the resulting initramfs.
+func WithBaseFile(path string) Modifier {
+	if path == "" {
+		return nil
+	}
+	return WithBase(&initramfs.CPIOFile{Path: path})
+}
+
+// WithBaseArchive is an existing initramfs to include in the resulting initramfs.
+func WithBaseArchive(archive *cpio.Archive) Modifier {
+	return WithBase(&initramfs.Archive{Archive: archive})
+}
+
+// WithUinitCommand is command to link to /bin/uinit with args.
+//
+// cmd will be tokenized by a very basic shlex.Split.
+//
+// This can be an absolute path or the name of a command included in
+// Commands.
+//
+// The u-root init will always attempt to fork/exec a uinit program,
+// and append arguments from both the kernel command-line
+// (uroot.uinitargs) as well as those specified in cmd.
+//
+// If this is empty, no uinit symlink will be created, but a user may
+// still specify a command called uinit or include a /bin/uinit file.
+func WithUinitCommand(cmd string) Modifier {
+	if cmd == "" {
+		return nil
+	}
+	return func(opts *Opts) error {
+		args := shlex.Split(cmd)
+		if len(args) > 0 {
+			opts.UinitCmd = args[0]
+		}
+		if len(args) > 1 {
+			opts.UinitArgs = args[1:]
+		}
+		return nil
+	}
+}
+
+// WithUinit is command to link to /bin/uinit with args.
+//
+// This can be an absolute path or the name of a command included in
+// Commands.
+//
+// The u-root init will always attempt to fork/exec a uinit program,
+// and append arguments from both the kernel command-line
+// (uroot.uinitargs) as well as those specified in cmd.
+func WithUinit(arg0 string, args ...string) Modifier {
+	return func(opts *Opts) error {
+		opts.UinitCmd = arg0
+		opts.UinitArgs = args
+		return nil
+	}
+}
+
+// WithInit sets the name of a command to link /init to.
+//
+// This can be an absolute path or the name of a command included in
+// Commands.
+func WithInit(arg0 string) Modifier {
+	return func(opts *Opts) error {
+		opts.InitCmd = arg0
+		return nil
+	}
+}
+
+// WithShell sets the default shell to start after init, which is a symlink
+// from /bin/sh.
+//
+// This can be an absolute path or the name of a command included in
+// Commands.
+func WithShell(arg0 string) Modifier {
+	return func(opts *Opts) error {
+		opts.DefaultShell = arg0
+		return nil
+	}
+}
+
+// WithTempDir sets a temporary directory to use for building commands.
+func WithTempDir(dir string) Modifier {
+	if dir == "" {
+		return nil
+	}
+	return func(o *Opts) error {
+		o.TempDir = dir
+		return nil
+	}
+}
+
+// Create creates an initramfs from mods specifications.
+func Create(l ulog.Logger, mods ...Modifier) error {
+	o, err := OptionsFor(mods...)
+	if err != nil {
+		return err
+	}
+	return o.Create(l)
 }
 
 // CreateInitramfs creates an initramfs built to opts' specifications.

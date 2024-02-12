@@ -4,9 +4,10 @@ go 1.21
 
 require (
 	github.com/hugelgupf/go-shlex v0.0.0-20200702092117-c80c9d0918fa
-	github.com/u-root/gobusybox/src v0.0.0-20240209041341-8c409c9832aa
+	github.com/u-root/gobusybox/src v0.0.0-20240212035024-44ff0bf359ad
 	github.com/u-root/u-root v0.12.0
 	github.com/u-root/uio v0.0.0-20240118234441-a3c409a6018e
+	golang.org/x/sync v0.6.0
 	golang.org/x/sys v0.16.0
 	golang.org/x/tools v0.17.0
 )
@@ -28,6 +29,5 @@ require (
 	github.com/vishvananda/netns v0.0.4 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
-	golang.org/x/sync v0.6.0 // indirect
 	src.elv.sh v0.16.0-rc1.0.20220116211855-fda62502ad7f // indirect
 )
