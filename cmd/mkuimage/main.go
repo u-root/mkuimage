@@ -13,7 +13,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -321,10 +320,7 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 		}
 	}
 
-	var (
-		c           []uroot.Commands
-		initCommand = *initCmd
-	)
+	var c []uroot.Commands
 	if !*noCommands {
 		var b builder.Builder
 		switch *build {
@@ -332,32 +328,15 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 			b = builder.GBBBuilder{ShellBang: *shellbang}
 		case "binary":
 			b = builder.BinaryBuilder{}
-		case "source":
-			return fmt.Errorf("source mode has been deprecated")
 		default:
 			return fmt.Errorf("could not find builder %q", *build)
 		}
 
-		// Resolve globs into package imports.
-		//
-		// Currently allowed format:
-		//   Paths to Go package directories; e.g. $GOPATH/src/github.com/u-root/u-root/cmds/*
-		//   u-root templates; e.g. all, core, minimal (requires uroot-source be valid)
-		//   Import paths of u-root commands; e.g. github.com/u-root/u-root/cmds/* (requires uroot-source)
-		var pkgs []string
-		for _, a := range flag.Args() {
-			if !validateArg(a) {
-				l.Printf("%q is not a valid path, allowed are only existing relative or absolute file paths!", a)
-				continue
-			}
-			pkgs = append(pkgs, a)
-		}
+		pkgs := flag.Args()
 		if len(pkgs) == 0 {
 			pkgs = []string{"github.com/u-root/u-root/cmds/core/*"}
 		}
 
-		// The command-line tool only allows specifying one build mode
-		// right now.
 		c = append(c, uroot.Commands{
 			Builder:   b,
 			Packages:  pkgs,
@@ -374,7 +353,7 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 		OutputFile:      output,
 		BaseArchive:     base,
 		UseExistingInit: *useExistingInit,
-		InitCmd:         initCommand,
+		InitCmd:         *initCmd,
 		DefaultShell:    *defaultShell,
 	}
 	uinitArgs := shlex.Split(*uinitCmd)
@@ -385,37 +364,4 @@ func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error
 		opts.UinitArgs = uinitArgs[1:]
 	}
 	return uroot.CreateInitramfs(l, opts)
-}
-
-func validateArg(arg string) bool {
-	// Do the simple thing first: stat the path.
-	// This saves incorrect diagnostics when the
-	// path is a perfectly valid relative path.
-	if _, err := os.Stat(arg); err == nil {
-		return true
-	}
-	if !checkPrefix(arg) {
-		paths, err := filepath.Glob(arg)
-		if err != nil {
-			return false
-		}
-		for _, path := range paths {
-			if !checkPrefix(path) {
-				return false
-			}
-		}
-	}
-
-	return true
-}
-
-func checkPrefix(arg string) bool {
-	prefixes := []string{".", "/", "-", "cmds", "github.com/u-root/u-root"}
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(arg, prefix) {
-			return true
-		}
-	}
-
-	return false
 }
