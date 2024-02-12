@@ -6,18 +6,15 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"runtime"
-	"sort"
 	"strings"
-	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/hugelgupf/go-shlex"
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/gobusybox/src/pkg/uflag"
@@ -95,56 +92,6 @@ func init() {
 	urootSourceDir = flag.String("uroot-source", ".", "Path to the locally checked out u-root source tree in case commands from there are desired.")
 }
 
-type buildStats struct {
-	Label      string  `json:"label,omitempty"`
-	Time       int64   `json:"time"`
-	Duration   float64 `json:"duration"`
-	OutputSize int64   `json:"output_size"`
-}
-
-func writeBuildStats(stats buildStats, path string) error {
-	var allStats []buildStats
-	data, err := os.ReadFile(*statsOutputPath)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(data, &allStats); err != nil {
-		return err
-	}
-	found := false
-	for i, s := range allStats {
-		if s.Label == stats.Label {
-			allStats[i] = stats
-			found = true
-			break
-		}
-	}
-	if !found {
-		allStats = append(allStats, stats)
-		sort.Slice(allStats, func(i, j int) bool {
-			return strings.Compare(allStats[i].Label, allStats[j].Label) == -1
-		})
-	}
-	data, err = json.MarshalIndent(allStats, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(*statsOutputPath, data, 0o644)
-}
-
-func generateLabel(env *golang.Environ) string {
-	var baseCmds []string
-	if len(flag.Args()) > 0 {
-		// Use the last component of the name to keep the label short
-		for _, e := range flag.Args() {
-			baseCmds = append(baseCmds, path.Base(e))
-		}
-	} else {
-		baseCmds = []string{"core"}
-	}
-	return fmt.Sprintf("%s-%s-%s-%s", *build, env.GOOS, env.GOARCH, strings.Join(baseCmds, "_"))
-}
-
 // checkArgs checks for common mistakes that cause confusion.
 //  1. -files as the last argument
 //  2. -files followed by any switch, indicating a shell expansion problem
@@ -207,33 +154,13 @@ func main() {
 		l.Printf("GOOS is not linux. Did you mean to set GOOS=linux?")
 	}
 
-	start := time.Now()
-
 	// Main is in a separate functions so defers run on return.
 	if err := Main(l, env, gbbOpts); err != nil {
 		l.Fatalf("Build error: %v", err)
 	}
 
-	elapsed := time.Since(start)
-
-	stats := buildStats{
-		Label:    *statsLabel,
-		Time:     start.Unix(),
-		Duration: float64(elapsed.Milliseconds()) / 1000,
-	}
-	if stats.Label == "" {
-		stats.Label = generateLabel(env)
-	}
-	if stat, err := os.Stat(*outputPath); err == nil && stat.ModTime().After(start) {
-		l.Printf("Successfully built %q (size %d).", *outputPath, stat.Size())
-		stats.OutputSize = stat.Size()
-		if *statsOutputPath != "" {
-			if err := writeBuildStats(stats, *statsOutputPath); err == nil {
-				l.Printf("Wrote stats to %q (label %q)", *statsOutputPath, stats.Label)
-			} else {
-				l.Printf("Failed to write stats to %s: %v", *statsOutputPath, err)
-			}
-		}
+	if stat, err := os.Stat(*outputPath); err == nil {
+		l.Printf("Successfully built %q (size %d bytes -- %s).", *outputPath, stat.Size(), humanize.IBytes(uint64(stat.Size())))
 	}
 }
 
