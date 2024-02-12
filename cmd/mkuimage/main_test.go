@@ -46,12 +46,11 @@ func TestUrootCmdline(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	samplef, err := os.CreateTemp("", "u-root-test-")
+	samplef, err := os.CreateTemp(t.TempDir(), "u-root-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	samplef.Close()
-	defer os.RemoveAll(samplef.Name())
 
 	sampledir := t.TempDir()
 	if err = os.WriteFile(filepath.Join(sampledir, "foo"), nil, 0o644); err != nil {
@@ -185,14 +184,11 @@ func TestUrootCmdline(t *testing.T) {
 	for _, tt := range append(noCmdTests, bbTests...) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			delFiles := true
+			var wg sync.WaitGroup
 			var (
 				f1, f2     *os.File
 				sum1, sum2 []byte
 				errs       [2]error
-				wg         = &sync.WaitGroup{}
-				removeMu   sync.Mutex
-				remove     []string
 			)
 
 			wg.Add(2)
@@ -209,10 +205,6 @@ func TestUrootCmdline(t *testing.T) {
 					errs[0] = err
 					return
 				}
-
-				removeMu.Lock()
-				remove = append(remove, f1.Name())
-				removeMu.Unlock()
 				for _, v := range tt.validators {
 					if err := v.Validate(a); err != nil {
 						t.Errorf("validator failed: %v / archive:\n%s", err, a)
@@ -228,19 +220,9 @@ func TestUrootCmdline(t *testing.T) {
 					errs[1] = err
 					return
 				}
-				removeMu.Lock()
-				remove = append(remove, f2.Name())
-				removeMu.Unlock()
 			}()
 
 			wg.Wait()
-			defer func() {
-				if delFiles {
-					for _, n := range remove {
-						os.RemoveAll(n)
-					}
-				}
-			}()
 			if errs[0] != nil {
 				t.Error(errs[0])
 				return
@@ -250,7 +232,6 @@ func TestUrootCmdline(t *testing.T) {
 				return
 			}
 			if !bytes.Equal(sum1, sum2) {
-				delFiles = false
 				t.Errorf("not reproducible, hashes don't match")
 				t.Errorf("env: %v args: %v", tt.env, tt.args)
 				t.Errorf("file1: %v file2: %v", f1.Name(), f2.Name())
