@@ -14,12 +14,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
 	itest "github.com/u-root/mkuimage/uroot/initramfs/test"
+	"golang.org/x/sync/errgroup"
 )
 
 var twocmds = []string{
@@ -171,66 +171,40 @@ func TestUrootCmdline(t *testing.T) {
 			},
 		},
 	}
-	var bbTests []testCase
-	for _, test := range bareTests {
-		gbbTest := test
-		gbbTest.name += " gbb-gomodule"
-		gbbTest.args = append([]string{"-build=gbb"}, gbbTest.args...)
-		gbbTest.env = append(gbbTest.env, "GO111MODULE=on")
 
-		bbTests = append(bbTests, gbbTest)
-	}
-
-	for _, tt := range append(noCmdTests, bbTests...) {
+	for _, tt := range append(noCmdTests, bareTests...) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			var wg sync.WaitGroup
-			var (
-				f1, f2     *os.File
-				sum1, sum2 []byte
-				errs       [2]error
-			)
+			var g errgroup.Group
+			var f1, f2 *os.File
+			var sum1, sum2 []byte
 
-			wg.Add(2)
-			go func() {
-				defer wg.Done()
+			g.Go(func() error {
+				var err error
 				f1, sum1, err = buildIt(t, execPath, tt.args, tt.env, tt.err, gocoverdir)
-				if err != nil {
-					errs[0] = err
-					return
-				}
+				return err
+			})
 
-				a, err := itest.ReadArchive(f1.Name())
-				if err != nil {
-					errs[0] = err
-					return
-				}
-				for _, v := range tt.validators {
-					if err := v.Validate(a); err != nil {
-						t.Errorf("validator failed: %v / archive:\n%s", err, a)
-					}
-				}
-			}()
-
-			go func() {
-				defer wg.Done()
+			g.Go(func() error {
 				var err error
 				f2, sum2, err = buildIt(t, execPath, tt.args, tt.env, tt.err, gocoverdir)
-				if err != nil {
-					errs[1] = err
-					return
-				}
-			}()
+				return err
+			})
 
-			wg.Wait()
-			if errs[0] != nil {
-				t.Error(errs[0])
-				return
+			if err := g.Wait(); err != nil {
+				t.Fatal(err)
 			}
-			if errs[1] != nil {
-				t.Error(errs[1])
-				return
+
+			a, err := itest.ReadArchive(f1.Name())
+			if err != nil {
+				t.Fatal(err)
 			}
+			for _, v := range tt.validators {
+				if err := v.Validate(a); err != nil {
+					t.Errorf("validator failed: %v / archive:\n%s", err, a)
+				}
+			}
+
 			if !bytes.Equal(sum1, sum2) {
 				t.Errorf("not reproducible, hashes don't match")
 				t.Errorf("env: %v args: %v", tt.env, tt.args)
