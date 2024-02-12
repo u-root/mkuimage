@@ -22,7 +22,7 @@ var _ WriteOpener = &Dir{}
 // OpenWriter implements Archiver.OpenWriter.
 func (d *Dir) OpenWriter() (Writer, error) {
 	if len(d.Path) == 0 {
-		return nil, fmt.Errorf("path is required")
+		return nil, fmt.Errorf("failed to use directory as output: %w", ErrNoPath)
 	}
 	if err := os.MkdirAll(d.Path, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, err

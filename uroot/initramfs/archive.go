@@ -6,9 +6,15 @@
 package initramfs
 
 import (
+	"errors"
 	"io"
 
 	"github.com/u-root/mkuimage/cpio"
+)
+
+// Possible errors.
+var (
+	ErrNoPath = errors.New("invalid argument: must specify path")
 )
 
 // ReadOpener opens a cpio.RecordReader.

@@ -22,7 +22,7 @@ var _ WriteOpener = &CPIOFile{}
 // OpenWriter opens c.Path for writing.
 func (c *CPIOFile) OpenWriter() (Writer, error) {
 	if len(c.Path) == 0 {
-		return nil, fmt.Errorf("path is required")
+		return nil, fmt.Errorf("failed to write to CPIO: %w", ErrNoPath)
 	}
 	f, err := os.OpenFile(c.Path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
@@ -34,7 +34,7 @@ func (c *CPIOFile) OpenWriter() (Writer, error) {
 // OpenReader opens c.Path for reading.
 func (c *CPIOFile) OpenReader() (cpio.RecordReader, error) {
 	if len(c.Path) == 0 {
-		return nil, fmt.Errorf("path is required")
+		return nil, fmt.Errorf("failed to read from CPIO: %w", ErrNoPath)
 	}
 	f, err := os.Open(c.Path)
 	if err != nil {

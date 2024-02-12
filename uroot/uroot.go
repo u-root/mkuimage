@@ -314,7 +314,7 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 
 	// Finally, write the archive.
 	if err := initramfs.Write(archive); err != nil {
-		return fmt.Errorf("error archiving: %v", err)
+		return fmt.Errorf("error archiving: %w", err)
 	}
 	return nil
 }
