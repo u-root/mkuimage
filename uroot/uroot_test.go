@@ -405,10 +405,57 @@ func TestCreateInitramfs(t *testing.T) {
 				itest.IsEmpty{},
 			},
 		},
+		{
+			name: "cpio no path given",
+			opts: Opts{
+				TempDir:    dir,
+				InitCmd:    "/bin/systemd",
+				OutputFile: &initramfs.CPIOFile{},
+			},
+			errs: []error{initramfs.ErrNoPath},
+		},
+		{
+			name: "dir no path given",
+			opts: Opts{
+				TempDir:    dir,
+				InitCmd:    "/bin/systemd",
+				OutputFile: &initramfs.Dir{},
+			},
+			errs: []error{initramfs.ErrNoPath},
+		},
+		{
+			name: "dir failed to create",
+			opts: Opts{
+				TempDir:    dir,
+				InitCmd:    "/bin/systemd",
+				OutputFile: &initramfs.Dir{Path: filepath.Join(tmp400, "foobar")},
+			},
+			errs: []error{os.ErrPermission},
+		},
+		{
+			name: "cpio failed to create",
+			opts: Opts{
+				TempDir:    dir,
+				InitCmd:    "/bin/systemd",
+				OutputFile: &initramfs.CPIOFile{Path: filepath.Join(tmp400, "foobar")},
+			},
+			errs: []error{os.ErrPermission},
+		},
+		{
+			name: "cpio basefile no path given",
+			opts: Opts{
+				TempDir:     dir,
+				InitCmd:     "/bin/systemd",
+				BaseArchive: &initramfs.CPIOFile{},
+			},
+			errs: []error{initramfs.ErrNoPath},
+		},
 	} {
 		t.Run(fmt.Sprintf("Test %d [%s]", i, tt.name), func(t *testing.T) {
 			archive := cpio.InMemArchive()
-			tt.opts.OutputFile = &initramfs.Archive{Archive: archive}
+			if tt.opts.OutputFile == nil {
+				tt.opts.OutputFile = &initramfs.Archive{Archive: archive}
+			}
 			err := CreateInitramfs(l, tt.opts)
 			for _, want := range tt.errs {
 				if !errors.Is(err, want) {
