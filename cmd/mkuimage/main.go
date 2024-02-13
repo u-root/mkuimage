@@ -49,8 +49,6 @@ var (
 	useExistingInit                             *bool
 	noCommands                                  *bool
 	extraFiles                                  multiFlag
-	statsOutputPath                             *string
-	statsLabel                                  *string
 	shellbang                                   *bool
 	// For the new "filepath only" logic.
 	urootSourceDir *string
@@ -83,9 +81,6 @@ func init() {
 	flag.Var(&extraFiles, "files", "Additional files, directories, and binaries (with their ldd dependencies) to add to archive. Can be specified multiple times.")
 
 	shellbang = flag.Bool("shellbang", false, "Use #! instead of symlinks for busybox")
-
-	statsOutputPath = flag.String("stats-output-path", "", "Write build stats to this file (JSON)")
-	statsLabel = flag.String("stats-label", "", "Use this statsLabel when writing stats")
 
 	// Flag for the new filepath only mode. This will be required to find the u-root commands and make templates work
 	// In almost every case, "." is fine.
