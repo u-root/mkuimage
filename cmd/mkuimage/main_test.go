@@ -18,7 +18,7 @@ import (
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
-	itest "github.com/u-root/mkuimage/uroot/initramfs/test"
+	itest "github.com/u-root/mkuimage/uimage/initramfs/test"
 	"golang.org/x/sync/errgroup"
 )
 
