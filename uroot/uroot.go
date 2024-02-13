@@ -12,6 +12,7 @@ import (
 	"debug/elf"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -25,7 +26,7 @@ import (
 	"github.com/u-root/mkuimage/ldd"
 	"github.com/u-root/mkuimage/uroot/builder"
 	"github.com/u-root/mkuimage/uroot/initramfs"
-	"github.com/u-root/uio/ulog"
+	"github.com/u-root/uio/llog"
 )
 
 // These constants are used in DefaultRamfs.
@@ -247,8 +248,8 @@ func OptionsFor(mods ...Modifier) (*Opts, error) {
 }
 
 // Create creates an initramfs from the given options o.
-func (o *Opts) Create(logger ulog.Logger) error {
-	return CreateInitramfs(logger, *o)
+func (o *Opts) Create(l *llog.Logger) error {
+	return CreateInitramfs(l, *o)
 }
 
 // Apply modifies o with the given modifiers.
@@ -474,7 +475,7 @@ func WithTempDir(dir string) Modifier {
 }
 
 // Create creates an initramfs from mods specifications.
-func Create(l ulog.Logger, mods ...Modifier) error {
+func Create(l *llog.Logger, mods ...Modifier) error {
 	o, err := OptionsFor(mods...)
 	if err != nil {
 		return err
@@ -483,7 +484,7 @@ func Create(l ulog.Logger, mods ...Modifier) error {
 }
 
 // CreateInitramfs creates an initramfs built to opts' specifications.
-func CreateInitramfs(logger ulog.Logger, opts Opts) error {
+func CreateInitramfs(l *llog.Logger, opts Opts) error {
 	if _, err := os.Stat(opts.TempDir); os.IsNotExist(err) {
 		return fmt.Errorf("temp dir %q must exist: %w", opts.TempDir, err)
 	}
@@ -504,7 +505,7 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 
 	// Expand commands.
 	for index, cmds := range opts.Commands {
-		paths, err := findpkg.ResolveGlobs(logger, env, lookupEnv, cmds.Packages)
+		paths, err := findpkg.ResolveGlobs(l.AtLevel(slog.LevelInfo), env, lookupEnv, cmds.Packages)
 		if err != nil {
 			return fmt.Errorf("%w: %w", errResolvePackage, err)
 		}
@@ -530,7 +531,7 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 			TempDir:   builderTmpDir,
 			BinaryDir: cmds.TargetDir(),
 		}
-		if err := cmds.Builder.Build(logger, files, bOpts); err != nil {
+		if err := cmds.Builder.Build(l, files, bOpts); err != nil {
 			return fmt.Errorf("error building: %v", err)
 		}
 	}
@@ -542,10 +543,10 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 		BaseArchive:     opts.BaseArchive,
 		UseExistingInit: opts.UseExistingInit,
 	}
-	if err := ParseExtraFiles(logger, archive.Files, opts.ExtraFiles, !opts.SkipLDD); err != nil {
+	if err := ParseExtraFiles(l, archive.Files, opts.ExtraFiles, !opts.SkipLDD); err != nil {
 		return err
 	}
-	if err := opts.addSymlinkTo(logger, archive, opts.UinitCmd, "bin/uinit"); err != nil {
+	if err := opts.addSymlinkTo(l, archive, opts.UinitCmd, "bin/uinit"); err != nil {
 		return fmt.Errorf("%w: %w", err, errUinitSymlink)
 	}
 	if len(opts.UinitArgs) > 0 {
@@ -553,13 +554,13 @@ func CreateInitramfs(logger ulog.Logger, opts Opts) error {
 			return fmt.Errorf("%w: %w", err, errUinitArgs)
 		}
 	}
-	if err := opts.addSymlinkTo(logger, archive, opts.InitCmd, "init"); err != nil {
+	if err := opts.addSymlinkTo(l, archive, opts.InitCmd, "init"); err != nil {
 		return fmt.Errorf("%w: %w", err, errInitSymlink)
 	}
-	if err := opts.addSymlinkTo(logger, archive, opts.DefaultShell, "bin/sh"); err != nil {
+	if err := opts.addSymlinkTo(l, archive, opts.DefaultShell, "bin/sh"); err != nil {
 		return fmt.Errorf("%w: %w", err, errDefaultshSymlink)
 	}
-	if err := opts.addSymlinkTo(logger, archive, opts.DefaultShell, "bin/defaultsh"); err != nil {
+	if err := opts.addSymlinkTo(l, archive, opts.DefaultShell, "bin/defaultsh"); err != nil {
 		return fmt.Errorf("%w: %w", err, errDefaultshSymlink)
 	}
 
@@ -579,7 +580,7 @@ var (
 	errUinitArgs        = errors.New("could not add uinit arguments")
 )
 
-func (o *Opts) addSymlinkTo(logger ulog.Logger, archive *initramfs.Opts, command string, source string) error {
+func (o *Opts) addSymlinkTo(l *llog.Logger, archive *initramfs.Opts, command string, source string) error {
 	if len(command) == 0 {
 		return nil
 	}
@@ -589,7 +590,7 @@ func (o *Opts) addSymlinkTo(logger ulog.Logger, archive *initramfs.Opts, command
 		if o.Commands != nil {
 			return fmt.Errorf("%w from %q to %q: %w", errSymlink, source, command, err)
 		}
-		logger.Printf("Could not create symlink from %q to %q: %v", source, command, err)
+		l.Errorf("Could not create symlink from %q to %q: %v", source, command, err)
 		return nil
 	}
 
@@ -639,7 +640,7 @@ func resolveCommandOrPath(cmd string, cmds []Commands) (string, error) {
 //   - "/home/foo" is equivalent to "/home/foo:home/foo".
 //
 // ParseExtraFiles will also add ldd-listed dependencies if lddDeps is true.
-func ParseExtraFiles(logger ulog.Logger, archive *initramfs.Files, extraFiles []string, lddDeps bool) error {
+func ParseExtraFiles(l *llog.Logger, archive *initramfs.Files, extraFiles []string, lddDeps bool) error {
 	var err error
 	// Add files from command line.
 	for _, file := range extraFiles {
@@ -694,7 +695,7 @@ func ParseExtraFiles(logger ulog.Logger, archive *initramfs.Files, extraFiles []
 					return nil //nolint:nilerr
 				}
 				if err = f.Close(); err != nil {
-					logger.Printf("WARNING: Closing ELF file %q: %v", name, err)
+					l.Warnf("Closing ELF file %q: %v", name, err)
 				}
 				// Pull dependencies in the case of binaries. If `path` is not
 				// a binary, `libs` will just be empty.
@@ -704,12 +705,12 @@ func ParseExtraFiles(logger ulog.Logger, archive *initramfs.Files, extraFiles []
 				}
 				for _, lib := range libs {
 					if err := archive.AddFileNoFollow(lib, lib[1:]); err != nil {
-						logger.Printf("WARNING: couldn't add ldd dependencies for %q: %v", lib, err)
+						l.Warnf("WARNING: couldn't add ldd dependencies for %q: %v", lib, err)
 					}
 				}
 				return nil
 			}); err != nil {
-				logger.Printf("Getting dependencies for %q: %v", src, err)
+				l.Warnf("Getting dependencies for %q: %v", src, err)
 			}
 		}
 	}

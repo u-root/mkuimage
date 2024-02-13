@@ -7,13 +7,14 @@ package builder
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"path"
 	"path/filepath"
 
 	"github.com/u-root/gobusybox/src/pkg/bb"
 	"github.com/u-root/mkuimage/cpio"
 	"github.com/u-root/mkuimage/uroot/initramfs"
-	"github.com/u-root/uio/ulog"
+	"github.com/u-root/uio/llog"
 )
 
 // Commands to skip building in bb mode.
@@ -47,7 +48,7 @@ func (GBBBuilder) DefaultBinaryDir() string {
 }
 
 // Build is an implementation of Builder.Build for a busybox-like initramfs.
-func (b GBBBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error {
+func (b GBBBuilder) Build(l *llog.Logger, af *initramfs.Files, opts Opts) error {
 	// Build the busybox binary.
 	if len(opts.TempDir) == 0 {
 		return ErrTempDirMissing
@@ -69,7 +70,7 @@ func (b GBBBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error {
 		BinaryPath:   bbPath,
 		GoBuildOpts:  opts.BuildOpts,
 	}
-	if err := bb.BuildBusybox(l, bopts); err != nil {
+	if err := bb.BuildBusybox(l.AtLevel(slog.LevelInfo), bopts); err != nil {
 		// Return some instructions for the user; this is printed last in the u-root tool.
 		//
 		// TODO: yeah, this isn't a good way to do error handling. The

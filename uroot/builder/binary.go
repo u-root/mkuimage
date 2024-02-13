@@ -11,7 +11,7 @@ import (
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/uroot/initramfs"
-	"github.com/u-root/uio/ulog"
+	"github.com/u-root/uio/llog"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -49,7 +49,7 @@ func (BinaryBuilder) DefaultBinaryDir() string {
 }
 
 // Build implements Builder.Build.
-func (b BinaryBuilder) Build(l ulog.Logger, af *initramfs.Files, opts Opts) error {
+func (b BinaryBuilder) Build(l *llog.Logger, af *initramfs.Files, opts Opts) error {
 	if opts.Env == nil {
 		return ErrEnvMissing
 	}

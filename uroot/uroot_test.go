@@ -17,7 +17,7 @@ import (
 	"github.com/u-root/mkuimage/uroot/builder"
 	"github.com/u-root/mkuimage/uroot/initramfs"
 	itest "github.com/u-root/mkuimage/uroot/initramfs/test"
-	"github.com/u-root/uio/ulog/ulogtest"
+	"github.com/u-root/uio/llog"
 )
 
 func archive(tb testing.TB, r ...cpio.Record) *cpio.Archive {
@@ -47,7 +47,7 @@ func TestCreateInitramfs(t *testing.T) {
 
 	cwd, _ := os.Getwd()
 
-	l := ulogtest.Logger{TB: t}
+	l := llog.Test(t)
 
 	for i, tt := range []struct {
 		name       string
@@ -502,7 +502,7 @@ func TestCreateInitramfsWithAPI(t *testing.T) {
 
 	cwd, _ := os.Getwd()
 
-	l := ulogtest.Logger{TB: t}
+	l := llog.Test(t)
 
 	for i, tt := range []struct {
 		name       string
