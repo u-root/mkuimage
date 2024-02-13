@@ -13,7 +13,7 @@ import (
 
 	"github.com/u-root/gobusybox/src/pkg/bb"
 	"github.com/u-root/mkuimage/cpio"
-	"github.com/u-root/mkuimage/uroot/initramfs"
+	"github.com/u-root/mkuimage/uimage/initramfs"
 	"github.com/u-root/uio/llog"
 )
 

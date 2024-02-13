@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package uroot
+package uimage
 
 import (
 	"errors"
@@ -14,9 +14,9 @@ import (
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
-	"github.com/u-root/mkuimage/uroot/builder"
-	"github.com/u-root/mkuimage/uroot/initramfs"
-	itest "github.com/u-root/mkuimage/uroot/initramfs/test"
+	"github.com/u-root/mkuimage/uimage/builder"
+	"github.com/u-root/mkuimage/uimage/initramfs"
+	itest "github.com/u-root/mkuimage/uimage/initramfs/test"
 	"github.com/u-root/uio/llog"
 )
 
@@ -110,8 +110,8 @@ func TestCreateInitramfs(t *testing.T) {
 					somefile,
 					// Empty is ignored.
 					"",
-					"uroot_test.go",
-					filepath.Join(cwd, "uroot_test.go"),
+					"uimage_test.go",
+					filepath.Join(cwd, "uimage_test.go"),
 					// Parent directory is created.
 					somefile + ":somedir/somefile",
 				},
@@ -122,8 +122,8 @@ func TestCreateInitramfs(t *testing.T) {
 				itest.HasContent{Path: somefile, Content: "foobar"},
 				itest.HasContent{Path: "etc/somefile2", Content: "spongebob"},
 				// TODO: This behavior is weird.
-				itest.HasFile{Path: "uroot_test.go"},
-				itest.HasFile{Path: filepath.Join(cwd, "uroot_test.go")},
+				itest.HasFile{Path: "uimage_test.go"},
+				itest.HasFile{Path: filepath.Join(cwd, "uimage_test.go")},
 				itest.HasDir{Path: "somedir"},
 				itest.HasContent{Path: "somedir/somefile", Content: "foobar"},
 			},
@@ -560,8 +560,8 @@ func TestCreateInitramfsWithAPI(t *testing.T) {
 					somefile,
 					// Empty is ignored.
 					"",
-					"uroot_test.go",
-					filepath.Join(cwd, "uroot_test.go"),
+					"uimage_test.go",
+					filepath.Join(cwd, "uimage_test.go"),
 					// Parent directory is created.
 					somefile+":somedir/somefile",
 				),
@@ -572,8 +572,8 @@ func TestCreateInitramfsWithAPI(t *testing.T) {
 				itest.HasContent{Path: somefile, Content: "foobar"},
 				itest.HasContent{Path: "etc/somefile2", Content: "spongebob"},
 				// TODO: This behavior is weird.
-				itest.HasFile{Path: "uroot_test.go"},
-				itest.HasFile{Path: filepath.Join(cwd, "uroot_test.go")},
+				itest.HasFile{Path: "uimage_test.go"},
+				itest.HasFile{Path: filepath.Join(cwd, "uimage_test.go")},
 				itest.HasDir{Path: "somedir"},
 				itest.HasContent{Path: "somedir/somefile", Content: "foobar"},
 			},

@@ -19,9 +19,9 @@ import (
 	"github.com/hugelgupf/go-shlex"
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/gobusybox/src/pkg/uflag"
-	"github.com/u-root/mkuimage/uroot"
-	"github.com/u-root/mkuimage/uroot/builder"
-	"github.com/u-root/mkuimage/uroot/initramfs"
+	"github.com/u-root/mkuimage/uimage"
+	"github.com/u-root/mkuimage/uimage/builder"
+	"github.com/u-root/mkuimage/uimage/initramfs"
 	"github.com/u-root/uio/llog"
 )
 
@@ -225,7 +225,7 @@ func Main(l *llog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) erro
 	output := getWriter(*format, *outputPath)
 
 	var base initramfs.ReadOpener
-	base = &initramfs.Archive{Archive: uroot.DefaultRamfs()}
+	base = &initramfs.Archive{Archive: uimage.DefaultRamfs()}
 	if *basePath != "" {
 		base = getReader(*format, *basePath)
 	}
@@ -244,7 +244,7 @@ func Main(l *llog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) erro
 		}
 	}
 
-	var c []uroot.Commands
+	var c []uimage.Commands
 	if !*noCommands {
 		var b builder.Builder
 		switch *build {
@@ -261,14 +261,14 @@ func Main(l *llog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) erro
 			pkgs = []string{"github.com/u-root/u-root/cmds/core/*"}
 		}
 
-		c = append(c, uroot.Commands{
+		c = append(c, uimage.Commands{
 			Builder:   b,
 			Packages:  pkgs,
 			BuildOpts: buildOpts,
 		})
 	}
 
-	opts := uroot.Opts{
+	opts := uimage.Opts{
 		Env:             env,
 		Commands:        c,
 		UrootSource:     *urootSourceDir,
@@ -287,5 +287,5 @@ func Main(l *llog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) erro
 	if len(uinitArgs) > 1 {
 		opts.UinitArgs = uinitArgs[1:]
 	}
-	return uroot.CreateInitramfs(l, opts)
+	return uimage.CreateInitramfs(l, opts)
 }
