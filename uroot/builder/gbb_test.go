@@ -12,7 +12,7 @@ import (
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
 	"github.com/u-root/mkuimage/uroot/initramfs"
-	"github.com/u-root/uio/ulog/ulogtest"
+	"github.com/u-root/uio/llog"
 )
 
 func TestGBBBuild(t *testing.T) {
@@ -27,7 +27,7 @@ func TestGBBBuild(t *testing.T) {
 	}
 	af := initramfs.NewFiles()
 	var gbb GBBBuilder
-	if err := gbb.Build(ulogtest.Logger{TB: t}, af, opts); err != nil {
+	if err := gbb.Build(llog.Test(t), af, opts); err != nil {
 		t.Fatalf("Build(%v, %v); %v != nil", af, opts, err)
 	}
 
@@ -117,7 +117,7 @@ func TestGBBBuildError(t *testing.T) {
 		for _, f := range tt.files {
 			_ = af.AddRecord(f)
 		}
-		if err := tt.gbb.Build(ulogtest.Logger{TB: t}, af, tt.opts); !errors.Is(err, tt.want) {
+		if err := tt.gbb.Build(llog.Test(t), af, tt.opts); !errors.Is(err, tt.want) {
 			t.Errorf("Build = %v, want %v", err, tt.want)
 		}
 	}

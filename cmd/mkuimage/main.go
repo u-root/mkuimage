@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"runtime"
 	"strings"
@@ -21,7 +22,7 @@ import (
 	"github.com/u-root/mkuimage/uroot"
 	"github.com/u-root/mkuimage/uroot/builder"
 	"github.com/u-root/mkuimage/uroot/initramfs"
-	"github.com/u-root/uio/ulog"
+	"github.com/u-root/uio/llog"
 )
 
 // multiFlag is used for flags that support multiple invocations, e.g. -files.
@@ -132,30 +133,31 @@ func main() {
 	tags := (*uflag.Strings)(&env.BuildTags)
 	flag.CommandLine.Var(tags, "tags", "Go build tags -- repeat the flag for multiple values")
 
+	l := llog.Default()
+	l.RegisterVerboseFlag(flag.CommandLine, "v", slog.LevelDebug)
 	flag.Parse()
-
-	l := log.New(os.Stderr, "", log.Ltime)
 
 	if usrc := os.Getenv("UROOT_SOURCE"); usrc != "" && *urootSourceDir == "" {
 		*urootSourceDir = usrc
 	}
 
 	if env.CgoEnabled {
-		l.Printf("Disabling CGO for u-root...")
+		l.Infof("Disabling CGO for u-root...")
 		env.CgoEnabled = false
 	}
-	l.Printf("Build environment: %s", env)
+	l.Infof("Build environment: %s", env)
 	if env.GOOS != "linux" {
-		l.Printf("GOOS is not linux. Did you mean to set GOOS=linux?")
+		l.Warnf("GOOS is not linux. Did you mean to set GOOS=linux?")
 	}
 
 	// Main is in a separate functions so defers run on return.
 	if err := Main(l, env, gbbOpts); err != nil {
-		l.Fatalf("Build error: %v", err)
+		l.Errorf("Build error: %v", err)
+		return
 	}
 
 	if stat, err := os.Stat(*outputPath); err == nil {
-		l.Printf("Successfully built %q (size %d bytes -- %s).", *outputPath, stat.Size(), humanize.IBytes(uint64(stat.Size())))
+		l.Infof("Successfully built %q (size %d bytes -- %s).", *outputPath, stat.Size(), humanize.IBytes(uint64(stat.Size())))
 	}
 }
 
@@ -203,14 +205,14 @@ func defaultFile(env *golang.Environ) string {
 
 // Main is a separate function so defers are run on return, which they wouldn't
 // on exit.
-func Main(l ulog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error {
+func Main(l *llog.Logger, env *golang.Environ, buildOpts *golang.BuildOpts) error {
 	v, err := env.Version()
 	if err != nil {
-		l.Printf("Could not get environment's Go version, using runtime's version: %v", err)
+		l.Infof("Could not get environment's Go version, using runtime's version: %v", err)
 		v = runtime.Version()
 	}
 	if !isRecommendedVersion(v) {
-		l.Printf(`WARNING: You are not using one of the recommended Go versions (have = %s, recommended = %v).
+		l.Warnf(`You are not using one of the recommended Go versions (have = %s, recommended = %v).
 			Some packages may not compile.
 			Go to https://golang.org/doc/install to find out how to install a newer version of Go,
 			or use https://godoc.org/golang.org/dl/%s to install an additional version of Go.`,

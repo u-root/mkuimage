@@ -10,7 +10,7 @@ import (
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/uroot/initramfs"
-	"github.com/u-root/uio/ulog/ulogtest"
+	"github.com/u-root/uio/llog"
 )
 
 func TestBinaryBuild(t *testing.T) {
@@ -26,7 +26,7 @@ func TestBinaryBuild(t *testing.T) {
 	}
 	af := initramfs.NewFiles()
 	var b BinaryBuilder
-	if err := b.Build(ulogtest.Logger{TB: t}, af, opts); err != nil {
+	if err := b.Build(llog.Test(t), af, opts); err != nil {
 		t.Fatalf("Build(%v, %v); %v != nil", af, opts, err)
 	}
 
@@ -83,7 +83,7 @@ func TestBinaryBuildError(t *testing.T) {
 	} {
 		af := initramfs.NewFiles()
 		var b BinaryBuilder
-		if err := b.Build(ulogtest.Logger{TB: t}, af, tt.opts); !errors.Is(err, tt.want) {
+		if err := b.Build(llog.Test(t), af, tt.opts); !errors.Is(err, tt.want) {
 			t.Errorf("Build = %v, want %v", err, tt.want)
 		}
 	}
