@@ -459,6 +459,52 @@ func TestCreateInitramfs(t *testing.T) {
 			},
 			errs: []error{initramfs.ErrNoPath},
 		},
+		{
+			name: "symlinks",
+			opts: Opts{
+				Env:          golang.Default(golang.DisableCGO()),
+				TempDir:      dir,
+				InitCmd:      "init",
+				DefaultShell: "ls",
+				Symlinks: map[string]string{
+					"ubin/foo":  "ls",
+					"ubin/fooa": "/bin/systemd",
+				},
+				Commands: BusyboxCmds(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+			},
+			validators: []itest.ArchiveValidator{
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.Symlink("bbin/init", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/ls", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bin/defaultsh", "../bbin/ls")},
+				itest.HasRecord{R: cpio.Symlink("bin/sh", "../bbin/ls")},
+				itest.HasRecord{R: cpio.Symlink("ubin/foo", "../bbin/ls")},
+				itest.HasRecord{R: cpio.Symlink("ubin/fooa", "../bin/systemd")},
+			},
+		},
+		{
+			name: "dup symlinks",
+			opts: Opts{
+				Env:          golang.Default(golang.DisableCGO()),
+				TempDir:      dir,
+				InitCmd:      "init",
+				DefaultShell: "ls",
+				Symlinks: map[string]string{
+					"/bbin/ls": "init",
+				},
+				Commands: BusyboxCmds(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+			},
+			errs: []error{os.ErrExist},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
 	} {
 		t.Run(fmt.Sprintf("Test %d [%s]", i, tt.name), func(t *testing.T) {
 			archive := cpio.InMemArchive()
@@ -890,6 +936,60 @@ func TestCreateInitramfsWithAPI(t *testing.T) {
 			validators: []itest.ArchiveValidator{
 				itest.HasRecord{R: cpio.Symlink("init", "bin/systemd")},
 				itest.HasContent{Path: "etc/foo", Content: "bar"},
+			},
+		},
+		{
+			name: "symlinks",
+			opts: []Modifier{
+				WithTempDir(dir),
+				WithEnv(golang.DisableCGO()),
+				WithInit("init"),
+				WithShell("ls"),
+				WithBusyboxCommands(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+				WithSymlink("ubin/foo", "ls"),
+				WithSymlink("ubin/fooa", "/bin/systemd"),
+			},
+			validators: []itest.ArchiveValidator{
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.Symlink("bbin/init", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/ls", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bin/defaultsh", "../bbin/ls")},
+				itest.HasRecord{R: cpio.Symlink("bin/sh", "../bbin/ls")},
+				itest.HasRecord{R: cpio.Symlink("ubin/foo", "../bbin/ls")},
+				itest.HasRecord{R: cpio.Symlink("ubin/fooa", "../bin/systemd")},
+			},
+		},
+		{
+			name: "dup symlinks",
+			opts: []Modifier{
+				WithTempDir(dir),
+				WithEnv(golang.DisableCGO()),
+				WithInit("init"),
+				WithShell("ls"),
+				WithBusyboxCommands(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+				WithSymlink("/bbin/ls", "init"),
+			},
+			errs: []error{os.ErrExist},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "dup with symlinks",
+			opts: []Modifier{
+				WithTempDir(dir),
+				WithSymlink("ubin/ls", "/bin/foo"),
+				WithSymlink("ubin/ls", "../bbin/ls"),
+			},
+			errs: []error{os.ErrExist},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
 			},
 		},
 	} {

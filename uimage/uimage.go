@@ -176,6 +176,11 @@ type Opts struct {
 	//   - "/home/foo" is equivalent to "/home/foo:home/foo".
 	ExtraFiles []string
 
+	// Symlinks to create in the archive. File path in archive -> target
+	//
+	// Target can be the name of a command. If not, it will be created as given.
+	Symlinks map[string]string
+
 	// If true, do not use ldd to pick up dependencies from local machine for
 	// ExtraFiles. Useful if you have all deps revision controlled and wish to
 	// ensure builds are repeatable, and/or if the local machine's binaries use
@@ -289,6 +294,22 @@ func WithEnv(gopts ...golang.Opt) Modifier {
 		} else {
 			o.Env.Apply(gopts...)
 		}
+		return nil
+	}
+}
+
+// WithSymlink adds a symlink to the archive.
+//
+// Target can be the name of a command. If not, it will be created as given.
+func WithSymlink(file string, target string) Modifier {
+	return func(o *Opts) error {
+		if o.Symlinks == nil {
+			o.Symlinks = make(map[string]string)
+		}
+		if other, ok := o.Symlinks[file]; ok {
+			return fmt.Errorf("%w: cannot add symlink for %q as %q, already points to %q", os.ErrExist, file, target, other)
+		}
+		o.Symlinks[file] = target
 		return nil
 	}
 }
@@ -562,6 +583,15 @@ func CreateInitramfs(l *llog.Logger, opts Opts) error {
 	}
 	if err := opts.addSymlinkTo(l, archive, opts.DefaultShell, "bin/defaultsh"); err != nil {
 		return fmt.Errorf("%w: %w", err, errDefaultshSymlink)
+	}
+	for p, target := range opts.Symlinks {
+		p = path.Clean(p)
+		if len(p) >= 1 && p[0] == '/' {
+			p = p[1:]
+		}
+		if err := opts.addSymlinkTo(l, archive, target, p); err != nil {
+			return fmt.Errorf("%w: could not add additional symlink", err)
+		}
 	}
 
 	// Finally, write the archive.
