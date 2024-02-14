@@ -1,6 +1,6 @@
 //go:build tools
 
-package vmtest
+package mkuimage
 
 // List u-root commands that need to be in go.mod & go.sum to be buildable as
 // dependencies. This way, they aren't eliminated by `go mod tidy`.
