@@ -378,6 +378,14 @@ func WithBinaryCommands(cmd ...string) Modifier {
 	return WithCommands(nil, builder.Binary, cmd...)
 }
 
+// WithBinaryCommandsOpts adds Go commands to compile as individual binaries
+// and add to the archive.
+//
+// Allowed formats for cmd are documented in [WithCommands].
+func WithBinaryCommandsOpts(gbOpts *golang.BuildOpts, cmd ...string) Modifier {
+	return WithCommands(gbOpts, builder.Binary, cmd...)
+}
+
 // WithOutput sets the archive output file.
 func WithOutput(w initramfs.WriteOpener) Modifier {
 	return func(o *Opts) error {
