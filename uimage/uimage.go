@@ -391,7 +391,7 @@ func WithBinaryCommandsOpts(gbOpts *golang.BuildOpts, cmd ...string) Modifier {
 //
 // Allowed formats for cmd are documented in [WithCommands].
 func WithCoveredCommands(cmd ...string) Modifier {
-	return WithCommands(&golang.BuildOpts{ExtraArgs: []string{"-cover", "covermode=atomic"}}, builder.Binary, cmd...)
+	return WithCommands(&golang.BuildOpts{ExtraArgs: []string{"-cover", "-covermode=atomic"}}, builder.Binary, cmd...)
 }
 
 // WithOutput sets the archive output file.
