@@ -236,6 +236,9 @@ type Opts struct {
 	//
 	// This must be specified to have a default shell.
 	DefaultShell string
+
+	// Records are additional CPIO records to include in the initramfs.
+	Records []cpio.Record
 }
 
 // Modifier modifies uimage options.
@@ -503,6 +506,14 @@ func WithTempDir(dir string) Modifier {
 	}
 }
 
+// WithRecord adds CPIO records to include in the initramfs.
+func WithRecord(r ...cpio.Record) Modifier {
+	return func(o *Opts) error {
+		o.Records = append(o.Records, r...)
+		return nil
+	}
+}
+
 // Create creates an initramfs from mods specifications.
 func Create(l *llog.Logger, mods ...Modifier) error {
 	o, err := OptionsFor(mods...)
@@ -571,6 +582,7 @@ func CreateInitramfs(l *llog.Logger, opts Opts) error {
 		OutputFile:      opts.OutputFile,
 		BaseArchive:     opts.BaseArchive,
 		UseExistingInit: opts.UseExistingInit,
+		Records:         opts.Records,
 	}
 	if err := ParseExtraFiles(l, archive.Files, opts.ExtraFiles, !opts.SkipLDD); err != nil {
 		return err
