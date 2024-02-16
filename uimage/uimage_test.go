@@ -505,6 +505,46 @@ func TestCreateInitramfs(t *testing.T) {
 				itest.IsEmpty{},
 			},
 		},
+		{
+			name: "extra records conflict",
+			opts: Opts{
+				Env:          golang.Default(golang.DisableCGO()),
+				TempDir:      dir,
+				InitCmd:      "init",
+				DefaultShell: "ls",
+				Records: []cpio.Record{
+					cpio.StaticFile("bbin/ls", "foo", 0o111),
+				},
+				Commands: BusyboxCmds(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+			},
+			errs: []error{os.ErrExist},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "extra records",
+			opts: Opts{
+				Env:          golang.Default(golang.DisableCGO()),
+				TempDir:      dir,
+				InitCmd:      "init",
+				DefaultShell: "ls",
+				Records: []cpio.Record{
+					cpio.StaticFile("etc/foo", "foo", 0o111),
+				},
+				Commands: BusyboxCmds(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+			},
+			validators: []itest.ArchiveValidator{
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.StaticFile("etc/foo", "foo", 0o111)},
+			},
+		},
 	} {
 		t.Run(fmt.Sprintf("Test %d [%s]", i, tt.name), func(t *testing.T) {
 			archive := cpio.InMemArchive()
@@ -990,6 +1030,42 @@ func TestCreateInitramfsWithAPI(t *testing.T) {
 			errs: []error{os.ErrExist},
 			validators: []itest.ArchiveValidator{
 				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "extra records conflict",
+			opts: []Modifier{
+				WithTempDir(dir),
+				WithEnv(golang.DisableCGO()),
+				WithInit("init"),
+				WithShell("ls"),
+				WithRecord(cpio.StaticFile("bbin/ls", "foo", 0o111)),
+				WithBusyboxCommands(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+			},
+			errs: []error{os.ErrExist},
+			validators: []itest.ArchiveValidator{
+				itest.IsEmpty{},
+			},
+		},
+		{
+			name: "extra records",
+			opts: []Modifier{
+				WithTempDir(dir),
+				WithEnv(golang.DisableCGO()),
+				WithInit("init"),
+				WithShell("ls"),
+				WithRecord(cpio.StaticFile("etc/foo", "foo", 0o111)),
+				WithBusyboxCommands(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+			},
+			validators: []itest.ArchiveValidator{
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.StaticFile("etc/foo", "foo", 0o111)},
 			},
 		},
 	} {

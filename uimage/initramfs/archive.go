@@ -57,6 +57,9 @@ type Opts struct {
 	// If this is false, the "init" file in BaseArchive will be renamed
 	// "inito" (for init-original) in the output archive.
 	UseExistingInit bool
+
+	// Records are additional CPIO records to include in the initramfs.
+	Records []cpio.Record
 }
 
 // Write uses the given options to determine which files to write to the output
@@ -96,6 +99,12 @@ func Write(opts *Opts) error {
 			// TODO: ignore only the error where it already exists
 			// in archive.
 			_ = opts.Files.AddRecord(transform(f))
+		}
+	}
+
+	for _, r := range opts.Records {
+		if err := opts.Files.AddRecord(r); err != nil {
+			return err
 		}
 	}
 

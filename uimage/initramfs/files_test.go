@@ -636,6 +636,48 @@ func TestOptsWrite(t *testing.T) {
 				cpio.Trailer: cpio.TrailerRecord,
 			},
 		},
+		{
+			desc: "base archive with init and extra records conflict",
+			opts: &Opts{
+				Files: &Files{
+					Records: map[string]cpio.Record{
+						"init": cpio.StaticFile("init", "huh", 0o111),
+					},
+				},
+				BaseArchive: &Archive{Archive: archive(t,
+					cpio.StaticFile("init", "boo", 0o555),
+				)},
+				Records: []cpio.Record{
+					cpio.StaticFile("init", "huh", 0o111),
+				},
+				UseExistingInit: true,
+			},
+			errs: []error{os.ErrExist},
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
+			},
+		},
+		{
+			desc: "extra records",
+			opts: &Opts{
+				Files: &Files{
+					Records: map[string]cpio.Record{
+						"init": cpio.StaticFile("init", "huh", 0o111),
+					},
+				},
+				Records: []cpio.Record{
+					cpio.StaticFile("etc/foo", "huh", 0o111),
+				},
+			},
+			output: &cpio.Archive{
+				Files: make(map[string]cpio.Record),
+			},
+			want: Records{
+				"init":       cpio.StaticFile("init", "boo", 0o555),
+				"etc/foo":    cpio.StaticFile("etc/foo", "huh", 0o111),
+				cpio.Trailer: cpio.TrailerRecord,
+			},
+		},
 	} {
 		t.Run(fmt.Sprintf("Test %02d (%s)", i, tt.desc), func(t *testing.T) {
 			tt.opts.OutputFile = &Archive{tt.output}
