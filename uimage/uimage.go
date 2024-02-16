@@ -386,6 +386,14 @@ func WithBinaryCommandsOpts(gbOpts *golang.BuildOpts, cmd ...string) Modifier {
 	return WithCommands(gbOpts, builder.Binary, cmd...)
 }
 
+// WithCoveredCommands adds Go commands to compile as individual binaries with
+// -cover and -covermode=atomic for integration test coverage.
+//
+// Allowed formats for cmd are documented in [WithCommands].
+func WithCoveredCommands(cmd ...string) Modifier {
+	return WithCommands(&golang.BuildOpts{ExtraArgs: []string{"-cover", "covermode=atomic"}}, builder.Binary, cmd...)
+}
+
 // WithOutput sets the archive output file.
 func WithOutput(w initramfs.WriteOpener) Modifier {
 	return func(o *Opts) error {
