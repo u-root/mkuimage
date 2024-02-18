@@ -42,7 +42,8 @@ func TestUrootCmdline(t *testing.T) {
 	}
 
 	gocoverdir := filepath.Join(wd, "cover")
-	if err := os.Mkdir(gocoverdir, 0o777); err != nil && !os.IsNotExist(err) {
+	os.RemoveAll(gocoverdir)
+	if err := os.Mkdir(gocoverdir, 0o777); err != nil && !os.IsExist(err) {
 		t.Fatal(err)
 	}
 
@@ -128,6 +129,16 @@ func TestUrootCmdline(t *testing.T) {
 					Path:    "etc/uinit.flags",
 					Content: "\"foobar\"\n\"fuzz\"",
 				},
+			},
+		},
+		{
+			name: "binary build",
+			args: []string{"-build=binary", "-defaultsh=", "github.com/u-root/u-root/cmds/core/init", "github.com/u-root/u-root/cmds/core/echo"},
+			err:  nil,
+			validators: []itest.ArchiveValidator{
+				itest.HasFile{Path: "bin/init"},
+				itest.HasFile{Path: "bin/echo"},
+				itest.HasRecord{R: cpio.CharDev("dev/tty", 0o666, 5, 0)},
 			},
 		},
 		{

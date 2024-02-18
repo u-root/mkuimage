@@ -48,7 +48,7 @@ func (GBBBuilder) DefaultBinaryDir() string {
 }
 
 // Build is an implementation of Builder.Build for a busybox-like initramfs.
-func (b GBBBuilder) Build(l *llog.Logger, af *initramfs.Files, opts Opts) error {
+func (b *GBBBuilder) Build(l *llog.Logger, af *initramfs.Files, opts Opts) error {
 	// Build the busybox binary.
 	if len(opts.TempDir) == 0 {
 		return ErrTempDirMissing
