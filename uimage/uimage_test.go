@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"syscall"
 	"testing"
 
@@ -992,6 +993,56 @@ func TestCreateInitramfsWithAPI(t *testing.T) {
 				itest.IsEmpty{},
 			},
 		},
+		{
+			name: "shellbang",
+			opts: []Modifier{
+				WithTempDir(dir),
+				WithEnv(golang.DisableCGO()),
+				WithShellBang(true),
+				WithBusyboxCommands(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+			},
+			validators: []itest.ArchiveValidator{
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.StaticFile("bbin/init", "#!/bbin/bb #!init\n", 0o755)},
+				itest.HasRecord{R: cpio.StaticFile("bbin/ls", "#!/bbin/bb #!ls\n", 0o755)},
+			},
+		},
+		{
+			name: "shellbang after placement",
+			opts: []Modifier{
+				WithTempDir(dir),
+				WithEnv(golang.DisableCGO()),
+				WithBusyboxCommands(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+				// Putting this after WithBusyboxCommands should not change the outcome.
+				WithShellBang(true),
+			},
+			validators: []itest.ArchiveValidator{
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.StaticFile("bbin/init", "#!/bbin/bb #!init\n", 0o755)},
+				itest.HasRecord{R: cpio.StaticFile("bbin/ls", "#!/bbin/bb #!ls\n", 0o755)},
+			},
+		},
+		{
+			name: "shellbang no busybox",
+			opts: []Modifier{
+				WithTempDir(dir),
+				WithEnv(golang.DisableCGO()),
+				WithBinaryCommands(
+					"github.com/u-root/u-root/cmds/core/init",
+				),
+				// Putting this after WithBusyboxCommands should not change the outcome.
+				WithShellBang(true),
+			},
+			validators: []itest.ArchiveValidator{
+				itest.HasFile{Path: "bin/init"},
+			},
+		},
 	} {
 		t.Run(fmt.Sprintf("Test %d [%s]", i, tt.name), func(t *testing.T) {
 			archive := cpio.InMemArchive()
@@ -1012,6 +1063,71 @@ func TestCreateInitramfsWithAPI(t *testing.T) {
 				if err := v.Validate(archive); err != nil {
 					t.Errorf("validator failed: %v / archive:\n%s", err, archive)
 				}
+			}
+		})
+	}
+}
+
+func TestOptionsFor(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		mods []Modifier
+		want *Opts
+	}{
+		{
+			name: "buildopts after",
+			mods: []Modifier{
+				WithBusyboxCommands(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+				WithBusyboxBuildOpts(&golang.BuildOpts{NoStrip: true}),
+			},
+			want: &Opts{
+				Env: golang.Default(),
+				Commands: []Commands{
+					{
+						Builder: builder.Busybox,
+						Packages: []string{
+							"github.com/u-root/u-root/cmds/core/init",
+							"github.com/u-root/u-root/cmds/core/ls",
+						},
+						BuildOpts: &golang.BuildOpts{NoStrip: true},
+					},
+				},
+			},
+		},
+		{
+			name: "buildopts before",
+			mods: []Modifier{
+				WithBusyboxBuildOpts(&golang.BuildOpts{NoStrip: true}),
+				WithBusyboxCommands(
+					"github.com/u-root/u-root/cmds/core/init",
+					"github.com/u-root/u-root/cmds/core/ls",
+				),
+			},
+			want: &Opts{
+				Env: golang.Default(),
+				Commands: []Commands{
+					{
+						Builder: builder.Busybox,
+						Packages: []string{
+							"github.com/u-root/u-root/cmds/core/init",
+							"github.com/u-root/u-root/cmds/core/ls",
+						},
+						BuildOpts: &golang.BuildOpts{NoStrip: true},
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := OptionsFor(tt.mods...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("OptionsFor = \n%#v, want\n%#v", got, tt.want)
 			}
 		})
 	}

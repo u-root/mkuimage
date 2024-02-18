@@ -16,10 +16,10 @@ import (
 
 var (
 	// Busybox is a shared GBBBuilder instance.
-	Busybox = GBBBuilder{}
+	Busybox = &GBBBuilder{}
 
 	// Binary is a shared BinaryBuilder instance.
-	Binary = BinaryBuilder{}
+	Binary = &BinaryBuilder{}
 )
 
 // Possible build errors.
