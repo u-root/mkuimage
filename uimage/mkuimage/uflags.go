@@ -14,6 +14,7 @@ import (
 	"github.com/u-root/gobusybox/src/pkg/uflag"
 	"github.com/u-root/mkuimage/uimage"
 	"github.com/u-root/mkuimage/uimage/builder"
+	"github.com/u-root/mkuimage/uimage/templates"
 )
 
 // CommandFlags are flags related to Go commands to be built by mkuimage.
@@ -146,4 +147,30 @@ func (f *Flags) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&f.UseExistingInit, "use-init", f.UseExistingInit, "Use existing init from base archive (only if --base was specified).")
 
 	f.Commands.RegisterFlags(fs)
+}
+
+// TemplateFlags are flags for uimage config templates.
+type TemplateFlags struct {
+	File   string
+	Config string
+}
+
+// RegisterFlags registers template flags.
+func (tc *TemplateFlags) RegisterFlags(f *flag.FlagSet) {
+	f.StringVar(&tc.Config, "config", "", "Config to pick from templates")
+	f.StringVar(&tc.File, "config-file", "", "Config file to read from (default: finds .mkuimage.yaml in cwd or parents)")
+}
+
+// Get turns template flags into templates.
+func (tc *TemplateFlags) Get() (*templates.Templates, error) {
+	if tc.File != "" {
+		return templates.TemplateFromFile(tc.File)
+	}
+
+	tpl, err := templates.Template()
+	// Only complain about not finding a template if user requested a templated config.
+	if err != nil && tc.Config != "" {
+		return nil, err
+	}
+	return tpl, nil
 }

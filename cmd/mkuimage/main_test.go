@@ -234,15 +234,6 @@ func TestUrootCmdline(t *testing.T) {
 			exitCode: 1,
 		},
 		{
-			name: "build invalid",
-			args: []string{
-				"-build=source",
-				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/echo",
-			},
-			exitCode: 1,
-		},
-		{
 			name: "arch invalid preserves temp dir",
 			env:  []string{"GOARCH=doesnotexist"},
 			args: []string{
@@ -262,6 +253,56 @@ func TestUrootCmdline(t *testing.T) {
 			},
 			exitCode:   1,
 			wantOutput: dirExists(tempDir),
+		},
+		{
+			name: "template config",
+			args: []string{"-config-file=./testdata/test-config.yaml", "-v", "-config=coreconf"},
+			validators: []itest.ArchiveValidator{
+				itest.HasRecord{R: cpio.CharDev("dev/tty", 0o666, 5, 0)},
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.Symlink("bbin/echo", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/ip", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/init", "bb")},
+				itest.HasRecord{R: cpio.Symlink("init", "bbin/init")},
+				itest.HasRecord{R: cpio.Symlink("bin/sh", "../bbin/echo")},
+				itest.HasRecord{R: cpio.Symlink("bin/uinit", "../bbin/echo")},
+				itest.HasRecord{R: cpio.Symlink("bin/defaultsh", "../bbin/echo")},
+				itest.HasContent{
+					Path:    "etc/uinit.flags",
+					Content: "\"script.sh\"",
+				},
+			},
+		},
+		{
+			name: "template command",
+			args: []string{"-config-file=./testdata/test-config.yaml", "-v", "core"},
+			validators: []itest.ArchiveValidator{
+				itest.HasRecord{R: cpio.CharDev("dev/tty", 0o666, 5, 0)},
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.Symlink("bbin/echo", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/ip", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/init", "bb")},
+			},
+		},
+		{
+			name:     "template config not found",
+			args:     []string{"-config-file=./testdata/test-config.yaml", "-v", "-config=foobar"},
+			exitCode: 1,
+		},
+		{
+			name:     "builder not found",
+			args:     []string{"-v", "build=source"},
+			exitCode: 1,
+		},
+		{
+			name:     "template file not found",
+			args:     []string{"-v", "-config-file=./testdata/doesnotexist"},
+			exitCode: 1,
+		},
+		{
+			name:     "config not found with no default template",
+			args:     []string{"-v", "-config=foo"},
+			exitCode: 1,
 		},
 	}
 

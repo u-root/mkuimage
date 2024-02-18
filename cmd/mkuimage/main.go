@@ -55,23 +55,14 @@ func checkArgs(args ...string) error {
 }
 
 func main() {
+	log.SetFlags(log.Ltime)
 	if err := checkArgs(os.Args...); err != nil {
 		log.Fatal(err)
 	}
 
-	var sh string
-	if golang.Default().GOOS != "plan9" {
-		sh = "gosh"
-	}
-
 	env := golang.Default(golang.DisableCGO())
 	f := &mkuimage.Flags{
-		Commands: mkuimage.CommandFlags{
-			Builder:   "bb",
-			BuildOpts: &golang.BuildOpts{},
-		},
-		Init:          "init",
-		Shell:         sh,
+		Commands:      mkuimage.CommandFlags{Builder: "bb"},
 		ArchiveFormat: "cpio",
 		OutputFile:    defaultFile(env),
 	}
@@ -79,14 +70,18 @@ func main() {
 
 	l := llog.Default()
 	l.RegisterVerboseFlag(flag.CommandLine, "v", slog.LevelDebug)
+
+	tf := &mkuimage.TemplateFlags{}
+	tf.RegisterFlags(flag.CommandLine)
 	flag.Parse()
 
+	// Set defaults.
 	m := []uimage.Modifier{
 		uimage.WithReplaceEnv(env),
 		uimage.WithBaseArchive(uimage.DefaultRamfs()),
 		uimage.WithCPIOOutput(defaultFile(env)),
 	}
-	if err := mkuimage.CreateUimage(l, m, f, flag.Args()); err != nil {
+	if err := mkuimage.CreateUimage(l, m, tf, f, flag.Args()); err != nil {
 		l.Errorf("mkuimage error: %v", err)
 		os.Exit(1)
 	}

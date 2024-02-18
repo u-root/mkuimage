@@ -67,6 +67,12 @@ type Templates struct {
 
 // Uimage returns the uimage modifiers for the given templated config name.
 func (t *Templates) Uimage(config string) ([]uimage.Modifier, error) {
+	if config == "" {
+		return nil, nil
+	}
+	if t == nil {
+		return nil, fmt.Errorf("%w: no templates parsed", ErrTemplateNotExist)
+	}
 	c, ok := t.Configs[config]
 	if !ok {
 		return nil, fmt.Errorf("%w: %q", ErrTemplateNotExist, config)
@@ -97,6 +103,9 @@ func (t *Templates) Uimage(config string) ([]uimage.Modifier, error) {
 
 // CommandsFor expands commands according to command templates.
 func (t *Templates) CommandsFor(names ...string) []string {
+	if t == nil {
+		return names
+	}
 	var c []string
 	for _, name := range names {
 		cmds, ok := t.Commands[name]
