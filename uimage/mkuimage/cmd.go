@@ -13,6 +13,7 @@ import (
 
 	"github.com/u-root/mkuimage/uimage"
 	"github.com/u-root/mkuimage/uimage/builder"
+	"github.com/u-root/mkuimage/uimage/templates"
 	"github.com/u-root/uio/llog"
 )
 
@@ -31,8 +32,37 @@ func isRecommendedVersion(v string) bool {
 	return false
 }
 
-// CreateUimage creates a uimage from the given base modifiers and flags.
-func CreateUimage(l *llog.Logger, base []uimage.Modifier, f *Flags, args []string) error {
+func uimageOpts(l *llog.Logger, m []uimage.Modifier, tpl *templates.Templates, f *Flags, conf string, cmds []string) (*uimage.Opts, error) {
+	// Evaluate template first -- template settings may always be
+	// appended/overridden by further flag-based settings.
+	if conf != "" {
+		mods, err := tpl.Uimage(conf)
+		if err != nil {
+			return nil, err
+		}
+		l.Debugf("Config: %#v", tpl.Configs[conf])
+		m = append(m, mods...)
+	}
+
+	// Expand command templates.
+	if tpl != nil {
+		cmds = tpl.CommandsFor(cmds...)
+	}
+
+	more, err := f.Modifiers(cmds...)
+	if err != nil {
+		return nil, err
+	}
+	return uimage.OptionsFor(append(m, more...)...)
+}
+
+// CreateUimage creates a uimage with the given base modifiers and flags, using args as the list of commands.
+func CreateUimage(l *llog.Logger, base []uimage.Modifier, tf *TemplateFlags, f *Flags, args []string) error {
+	tpl, err := tf.Get()
+	if err != nil {
+		return fmt.Errorf("failed to get template: %w", err)
+	}
+
 	keepTempDir := f.KeepTempDir
 	if f.TempDir == "" {
 		var err error
@@ -53,13 +83,7 @@ func CreateUimage(l *llog.Logger, base []uimage.Modifier, f *Flags, args []strin
 		}
 	}
 
-	// Set defaults.
-	more, err := f.Modifiers(args...)
-	if err != nil {
-		return err
-	}
-
-	opts, err := uimage.OptionsFor(append(base, more...)...)
+	opts, err := uimageOpts(l, base, tpl, f, tf.Config, args)
 	if err != nil {
 		return err
 	}
@@ -70,6 +94,7 @@ func CreateUimage(l *llog.Logger, base []uimage.Modifier, f *Flags, args []strin
 	if env.GOOS != "linux" {
 		l.Warnf("GOOS is not linux. Did you mean to set GOOS=linux?")
 	}
+
 	v, err := env.Version()
 	if err != nil {
 		l.Infof("Could not get environment's Go version, using runtime's version: %v", err)

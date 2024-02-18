@@ -528,6 +528,8 @@ func WithUinitCommand(cmd string) Modifier {
 		}
 		if len(args) > 1 {
 			opts.UinitArgs = args[1:]
+		} else {
+			opts.UinitArgs = nil
 		}
 		return nil
 	}
@@ -542,6 +544,9 @@ func WithUinitCommand(cmd string) Modifier {
 // and append arguments from both the kernel command-line
 // (uroot.uinitargs) as well as those specified in cmd.
 func WithUinit(arg0 string, args ...string) Modifier {
+	if arg0 == "" && len(args) == 0 {
+		return nil
+	}
 	return func(opts *Opts) error {
 		opts.UinitCmd = arg0
 		opts.UinitArgs = args
@@ -554,6 +559,9 @@ func WithUinit(arg0 string, args ...string) Modifier {
 // This can be an absolute path or the name of a command included in
 // Commands.
 func WithInit(arg0 string) Modifier {
+	if arg0 == "" {
+		return nil
+	}
 	return func(opts *Opts) error {
 		opts.InitCmd = arg0
 		return nil
@@ -566,6 +574,9 @@ func WithInit(arg0 string) Modifier {
 // This can be an absolute path or the name of a command included in
 // Commands.
 func WithShell(arg0 string) Modifier {
+	if arg0 == "" {
+		return nil
+	}
 	return func(opts *Opts) error {
 		opts.DefaultShell = arg0
 		return nil
