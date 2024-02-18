@@ -99,6 +99,16 @@ configs:
 			config: "plan10",
 			err:    ErrTemplateNotExist,
 		},
+		{
+			name: "no config",
+			tpl: `
+configs:
+  plan9:
+    goarch: amd64
+    goos: plan9
+`,
+			config: "",
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			tpl, err := TemplateFrom([]byte(tt.tpl))

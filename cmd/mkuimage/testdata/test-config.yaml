@@ -1,0 +1,37 @@
+commands:
+  core:
+    - github.com/u-root/u-root/cmds/core/ip
+    - github.com/u-root/u-root/cmds/core/init
+    - github.com/u-root/u-root/cmds/core/echo
+
+  minimal:
+    - github.com/u-root/u-root/cmds/core/ls
+    - github.com/u-root/u-root/cmds/core/init
+
+  plan9:
+    - github.com/u-root/u-root/cmds/core/ls
+    - github.com/u-root/u-root/cmds/core/init
+    - github.com/u-root/u-root/cmds/core/cat
+
+configs:
+  plan9:
+    goarch: amd64
+    goos: plan9
+    build_tags: [grpcnotrace]
+    files:
+      - /bin/bash
+    init: init
+    uinit: cat script.sh
+    shell: cat
+    commands:
+      - builder: bb
+        commands: [plan9]
+
+  coreconf:
+    build_tags: [grpcnotrace]
+    init: init
+    uinit: echo script.sh
+    shell: echo
+    commands:
+      - builder: bb
+        commands: [core, minimal]

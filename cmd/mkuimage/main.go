@@ -18,6 +18,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/uimage"
+	"github.com/u-root/mkuimage/uimage/templates"
 	"github.com/u-root/mkuimage/uimage/uflags"
 	"github.com/u-root/uio/llog"
 )
@@ -57,23 +58,14 @@ func checkArgs(args ...string) error {
 }
 
 func main() {
+	log.SetFlags(log.Ltime)
 	if err := checkArgs(os.Args...); err != nil {
 		log.Fatal(err)
 	}
 
-	var sh string
-	if golang.Default().GOOS != "plan9" {
-		sh = "gosh"
-	}
-
 	env := golang.Default(golang.DisableCGO())
 	f := &uflags.Flags{
-		Commands: uflags.CommandFlags{
-			Builder:   "bb",
-			BuildOpts: &golang.BuildOpts{},
-		},
-		Init:          "init",
-		Shell:         sh,
+		Commands:      uflags.CommandFlags{Builder: "bb"},
 		ArchiveFormat: "cpio",
 		OutputFile:    defaultFile(env),
 	}
@@ -81,17 +73,28 @@ func main() {
 
 	l := llog.Default()
 	l.RegisterVerboseFlag(flag.CommandLine, "v", slog.LevelDebug)
+
+	tc := &uflags.TemplateFlags{}
+	tc.RegisterFlags(flag.CommandLine)
 	flag.Parse()
 
-	l.Infof("Build environment: %s", env)
-	if env.GOOS != "linux" {
-		l.Warnf("GOOS is not linux. Did you mean to set GOOS=linux?")
+	tpl, err := tc.Get()
+	if err != nil {
+		l.Errorf("Failed to get template: %v", err)
+		os.Exit(1)
 	}
 
-	// Main is in a separate functions so defers run on return.
-	if err := Main(l, env, f); err != nil {
+	// Set defaults.
+	m := []uimage.Modifier{
+		uimage.WithReplaceEnv(env),
+		uimage.WithBaseArchive(uimage.DefaultRamfs()),
+		uimage.WithCPIOOutput(defaultFile(env)),
+	}
+
+	// realMain is in a separate functions so defers run on return.
+	if err := realMain(l, m, tpl, f, tc.Config); err != nil {
 		l.Errorf("Build error: %v", err)
-		return
+		os.Exit(1)
 	}
 
 	if stat, err := os.Stat(f.OutputFile); err == nil && f.ArchiveFormat == "cpio" {
@@ -121,22 +124,31 @@ func defaultFile(env *golang.Environ) string {
 	return fmt.Sprintf("/tmp/initramfs.%s_%s.cpio", env.GOOS, env.GOARCH)
 }
 
-// Main is a separate function so defers are run on return, which they wouldn't
-// on exit.
-func Main(l *llog.Logger, env *golang.Environ, f *uflags.Flags) error {
-	v, err := env.Version()
-	if err != nil {
-		l.Infof("Could not get environment's Go version, using runtime's version: %v", err)
-		v = runtime.Version()
-	}
-	if !isRecommendedVersion(v) {
-		l.Warnf(`You are not using one of the recommended Go versions (have = %s, recommended = %v).
-			Some packages may not compile.
-			Go to https://golang.org/doc/install to find out how to install a newer version of Go,
-			or use https://godoc.org/golang.org/dl/%s to install an additional version of Go.`,
-			v, recommendedVersions, recommendedVersions[0])
+func uimageOpts(l *llog.Logger, m []uimage.Modifier, tpl *templates.Templates, f *uflags.Flags, conf string, cmds []string) (*uimage.Opts, error) {
+	// Evaluate template first -- template settings may always be
+	// appended/overridden by further flag-based settings.
+	if conf != "" {
+		mods, err := tpl.Uimage(conf)
+		if err != nil {
+			return nil, err
+		}
+		l.Debugf("Config: %#v", tpl.Configs[conf])
+		m = append(m, mods...)
 	}
 
+	// Expand command templates.
+	if tpl != nil {
+		cmds = tpl.CommandsFor(cmds...)
+	}
+
+	more, err := f.Modifiers(cmds...)
+	if err != nil {
+		return nil, err
+	}
+	return uimage.OptionsFor(append(m, more...)...)
+}
+
+func realMain(l *llog.Logger, base []uimage.Modifier, tpl *templates.Templates, f *uflags.Flags, conf string) error {
 	if f.TempDir == "" {
 		var err error
 		f.TempDir, err = os.MkdirTemp("", "u-root")
@@ -156,15 +168,28 @@ func Main(l *llog.Logger, env *golang.Environ, f *uflags.Flags) error {
 		}
 	}
 
-	// Set defaults.
-	m := []uimage.Modifier{
-		uimage.WithReplaceEnv(env),
-		uimage.WithBaseArchive(uimage.DefaultRamfs()),
-		uimage.WithCPIOOutput(defaultFile(env)),
-	}
-	more, err := f.Modifiers(flag.Args()...)
+	opts, err := uimageOpts(l, base, tpl, f, conf, flag.Args())
 	if err != nil {
 		return err
 	}
-	return uimage.Create(l, append(m, more...)...)
+
+	env := opts.Env
+	l.Infof("Build environment: %s", env)
+	if env.GOOS != "linux" {
+		l.Warnf("GOOS is not linux. Did you mean to set GOOS=linux?")
+	}
+
+	v, err := env.Version()
+	if err != nil {
+		l.Infof("Could not get environment's Go version, using runtime's version: %v", err)
+		v = runtime.Version()
+	}
+	if !isRecommendedVersion(v) {
+		l.Warnf(`You are not using one of the recommended Go versions (have = %s, recommended = %v).
+			Some packages may not compile.
+			Go to https://golang.org/doc/install to find out how to install a newer version of Go,
+			or use https://godoc.org/golang.org/dl/%s to install an additional version of Go.`,
+			v, recommendedVersions, recommendedVersions[0])
+	}
+	return opts.Create(l)
 }

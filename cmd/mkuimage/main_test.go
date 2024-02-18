@@ -14,11 +14,20 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/cpio"
+	"github.com/u-root/mkuimage/uimage"
+	"github.com/u-root/mkuimage/uimage/builder"
+	"github.com/u-root/mkuimage/uimage/initramfs"
 	itest "github.com/u-root/mkuimage/uimage/initramfs/test"
+	"github.com/u-root/mkuimage/uimage/templates"
+	"github.com/u-root/mkuimage/uimage/uflags"
+	"github.com/u-root/uio/llog"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -65,7 +74,7 @@ func TestUrootCmdline(t *testing.T) {
 		name       string
 		env        []string
 		args       []string
-		err        error
+		exitCode   int
 		validators []itest.ArchiveValidator
 	}
 
@@ -74,7 +83,6 @@ func TestUrootCmdline(t *testing.T) {
 			name: "include one extra file",
 			args: []string{"-nocmd", "-files=/bin/bash"},
 			env:  []string{"GO111MODULE=off"},
-			err:  nil,
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "bin/bash"},
 			},
@@ -83,7 +91,6 @@ func TestUrootCmdline(t *testing.T) {
 			name: "fix usage of an absolute path",
 			args: []string{"-nocmd", fmt.Sprintf("-files=%s:/bin", sampledir)},
 			env:  []string{"GO111MODULE=off"},
-			err:  nil,
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "/bin/foo"},
 				itest.HasFile{Path: "/bin/bar"},
@@ -122,7 +129,6 @@ func TestUrootCmdline(t *testing.T) {
 		{
 			name: "uinitcmd",
 			args: []string{"-uinitcmd=echo foobar fuzz", "-defaultsh=", "github.com/u-root/u-root/cmds/core/init", "github.com/u-root/u-root/cmds/core/echo"},
-			err:  nil,
 			validators: []itest.ArchiveValidator{
 				itest.HasRecord{R: cpio.Symlink("bin/uinit", "../bbin/echo")},
 				itest.HasContent{
@@ -134,7 +140,6 @@ func TestUrootCmdline(t *testing.T) {
 		{
 			name: "binary build",
 			args: []string{"-build=binary", "-defaultsh=", "github.com/u-root/u-root/cmds/core/init", "github.com/u-root/u-root/cmds/core/echo"},
-			err:  nil,
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "bin/init"},
 				itest.HasFile{Path: "bin/echo"},
@@ -181,6 +186,56 @@ func TestUrootCmdline(t *testing.T) {
 				"github.com/u-root/u-root/cmds/core/echo",
 			},
 		},
+		{
+			name: "template config",
+			args: []string{"-config-file=./testdata/test-config.yaml", "-v", "-config=coreconf"},
+			validators: []itest.ArchiveValidator{
+				itest.HasRecord{R: cpio.CharDev("dev/tty", 0o666, 5, 0)},
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.Symlink("bbin/echo", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/ip", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/init", "bb")},
+				itest.HasRecord{R: cpio.Symlink("init", "bbin/init")},
+				itest.HasRecord{R: cpio.Symlink("bin/sh", "../bbin/echo")},
+				itest.HasRecord{R: cpio.Symlink("bin/uinit", "../bbin/echo")},
+				itest.HasRecord{R: cpio.Symlink("bin/defaultsh", "../bbin/echo")},
+				itest.HasContent{
+					Path:    "etc/uinit.flags",
+					Content: "\"script.sh\"",
+				},
+			},
+		},
+		{
+			name: "template command",
+			args: []string{"-config-file=./testdata/test-config.yaml", "-v", "core"},
+			validators: []itest.ArchiveValidator{
+				itest.HasRecord{R: cpio.CharDev("dev/tty", 0o666, 5, 0)},
+				itest.HasFile{Path: "bbin/bb"},
+				itest.HasRecord{R: cpio.Symlink("bbin/echo", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/ip", "bb")},
+				itest.HasRecord{R: cpio.Symlink("bbin/init", "bb")},
+			},
+		},
+		{
+			name:     "template config not found",
+			args:     []string{"-config-file=./testdata/test-config.yaml", "-v", "-config=foobar"},
+			exitCode: 1,
+		},
+		{
+			name:     "builder not found",
+			args:     []string{"-v", "build=source"},
+			exitCode: 1,
+		},
+		{
+			name:     "template file not found",
+			args:     []string{"-v", "-config-file=./testdata/doesnotexist"},
+			exitCode: 1,
+		},
+		{
+			name:     "config not found with no default template",
+			args:     []string{"-v", "-config=foo"},
+			exitCode: 1,
+		},
 	}
 
 	for _, tt := range append(noCmdTests, bareTests...) {
@@ -192,18 +247,24 @@ func TestUrootCmdline(t *testing.T) {
 
 			g.Go(func() error {
 				var err error
-				f1, sum1, err = buildIt(t, execPath, tt.args, tt.env, tt.err, gocoverdir)
+				f1, sum1, err = buildIt(t, execPath, tt.args, tt.env, gocoverdir)
 				return err
 			})
 
 			g.Go(func() error {
 				var err error
-				f2, sum2, err = buildIt(t, execPath, tt.args, tt.env, tt.err, gocoverdir)
+				f2, sum2, err = buildIt(t, execPath, tt.args, tt.env, gocoverdir)
 				return err
 			})
 
-			if err := g.Wait(); err != nil {
-				t.Fatal(err)
+			var exitErr *exec.ExitError
+			if err := g.Wait(); errors.As(err, &exitErr) {
+				if ec := exitErr.Sys().(syscall.WaitStatus).ExitStatus(); ec != tt.exitCode {
+					t.Errorf("mkuimage exit code = %d, want %d", ec, tt.exitCode)
+				}
+				return
+			} else if err != nil {
+				return
 			}
 
 			a, err := itest.ReadArchive(f1.Name())
@@ -225,7 +286,7 @@ func TestUrootCmdline(t *testing.T) {
 	}
 }
 
-func buildIt(t *testing.T, execPath string, args, env []string, want error, gocoverdir string) (*os.File, []byte, error) {
+func buildIt(t *testing.T, execPath string, args, env []string, gocoverdir string) (*os.File, []byte, error) {
 	t.Helper()
 	initramfs, err := os.CreateTemp(t.TempDir(), "u-root-")
 	if err != nil {
@@ -241,10 +302,10 @@ func buildIt(t *testing.T, execPath string, args, env []string, want error, goco
 	c.Env = append(os.Environ(), env...)
 	c.Env = append(c.Env, golang.Default().Env()...)
 	c.Env = append(c.Env, "GOCOVERDIR="+gocoverdir)
-	if out, err := c.CombinedOutput(); err != want {
-		return nil, nil, fmt.Errorf("Error: %v\nOutput:\n%s", err, out)
-	} else if err != nil {
-		return initramfs, nil, err
+	out, err := c.CombinedOutput()
+	t.Logf("output for %s:\n%s", t.Name(), out)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	h1 := sha256.New()
@@ -270,6 +331,177 @@ func TestCheckArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := checkArgs(tt.args...); !errors.Is(err, tt.err) {
 				t.Errorf("%q: got %v, want %v", tt.args, err, tt.err)
+			}
+		})
+	}
+}
+
+func TestOpts(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		m    []uimage.Modifier
+		tpl  *templates.Templates
+		f    *uflags.Flags
+		conf string
+		cmds []string
+		opts *uimage.Opts
+		err  error
+	}{
+		{
+			name: "cmdline only",
+			m: []uimage.Modifier{
+				uimage.WithReplaceEnv(golang.Default(golang.DisableCGO())),
+				uimage.WithCPIOOutput("/tmp/initramfs.cpio"),
+				uimage.WithTempDir("foo"),
+			},
+			f: &uflags.Flags{
+				Commands:      uflags.CommandFlags{Builder: "bb", Mod: "readonly"},
+				ArchiveFormat: "cpio",
+				Init:          "init",
+				Uinit:         "gosh script.sh",
+				OutputFile:    "./foo.cpio",
+				Files:         []string{"/bin/bash"},
+			},
+			cmds: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/gosh",
+			},
+			opts: &uimage.Opts{
+				Env:        golang.Default(golang.DisableCGO()),
+				InitCmd:    "init",
+				UinitCmd:   "gosh",
+				UinitArgs:  []string{"script.sh"},
+				OutputFile: &initramfs.CPIOFile{Path: "./foo.cpio"},
+				ExtraFiles: []string{"/bin/bash"},
+				TempDir:    "foo",
+				Commands: []uimage.Commands{
+					{
+						Builder: &builder.GBBBuilder{},
+						Packages: []string{
+							"github.com/u-root/u-root/cmds/core/init",
+							"github.com/u-root/u-root/cmds/core/gosh",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "template and cmdline combo",
+			m: []uimage.Modifier{
+				uimage.WithReplaceEnv(golang.Default(golang.DisableCGO())),
+				uimage.WithCPIOOutput("/tmp/initramfs.cpio"),
+				uimage.WithTempDir("foo"),
+			},
+			tpl: &templates.Templates{
+				Configs: map[string]templates.Config{
+					"plan9": templates.Config{
+						GOOS:      "plan9",
+						GOARCH:    "amd64",
+						BuildTags: []string{"grpcnotrace"},
+						Uinit:     "gosh script.sh",
+						Files:     []string{"foobar"},
+						Commands: []templates.Command{
+							{
+								Builder: "bb",
+								Commands: []string{
+									"github.com/u-root/u-root/cmds/core/gosh",
+								},
+							},
+							{
+								Builder: "binary",
+								Commands: []string{
+									"cmd/test2json",
+								},
+							},
+						},
+					},
+				},
+			},
+			conf: "plan9",
+			f: &uflags.Flags{
+				Commands:      uflags.CommandFlags{Builder: "bb", Mod: "readonly"},
+				ArchiveFormat: "cpio",
+				Init:          "init",
+				Uinit:         "cat",
+				OutputFile:    "./foo.cpio",
+				Files:         []string{"/bin/bash"},
+			},
+			cmds: []string{
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/cat",
+			},
+			opts: &uimage.Opts{
+				Env:        golang.Default(golang.DisableCGO(), golang.WithGOOS("plan9"), golang.WithGOARCH("amd64"), golang.WithBuildTag("grpcnotrace")),
+				InitCmd:    "init",
+				UinitCmd:   "cat",
+				OutputFile: &initramfs.CPIOFile{Path: "./foo.cpio"},
+				ExtraFiles: []string{"foobar", "/bin/bash"},
+				TempDir:    "foo",
+				Commands: []uimage.Commands{
+					{
+						Builder: &builder.GBBBuilder{},
+						Packages: []string{
+							"github.com/u-root/u-root/cmds/core/gosh",
+							"github.com/u-root/u-root/cmds/core/init",
+							"github.com/u-root/u-root/cmds/core/cat",
+						},
+					},
+					{
+						Builder: builder.Binary,
+						Packages: []string{
+							"cmd/test2json",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "expand cmdline config",
+			m: []uimage.Modifier{
+				uimage.WithReplaceEnv(golang.Default(golang.DisableCGO())),
+				uimage.WithCPIOOutput("/tmp/initramfs.cpio"),
+				uimage.WithTempDir("foo"),
+			},
+			f: &uflags.Flags{
+				Commands:      uflags.CommandFlags{Builder: "bb", Mod: "readonly"},
+				ArchiveFormat: "cpio",
+				OutputFile:    "./foo.cpio",
+				Files:         []string{"/bin/bash"},
+			},
+			tpl: &templates.Templates{
+				Commands: map[string][]string{
+					"core": []string{
+						"github.com/u-root/u-root/cmds/core/init",
+						"github.com/u-root/u-root/cmds/core/gosh",
+					},
+				},
+			},
+			cmds: []string{"core", "github.com/u-root/u-root/cmds/core/cat"},
+			opts: &uimage.Opts{
+				Env:        golang.Default(golang.DisableCGO()),
+				OutputFile: &initramfs.CPIOFile{Path: "./foo.cpio"},
+				ExtraFiles: []string{"/bin/bash"},
+				TempDir:    "foo",
+				Commands: []uimage.Commands{
+					{
+						Builder: &builder.GBBBuilder{},
+						Packages: []string{
+							"github.com/u-root/u-root/cmds/core/init",
+							"github.com/u-root/u-root/cmds/core/gosh",
+							"github.com/u-root/u-root/cmds/core/cat",
+						},
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			opts, err := uimageOpts(llog.Test(t), tt.m, tt.tpl, tt.f, tt.conf, tt.cmds)
+			if !errors.Is(err, tt.err) {
+				t.Errorf("opts = %v, want %v", err, tt.err)
+			}
+			if diff := cmp.Diff(opts, tt.opts, cmpopts.IgnoreFields(uimage.Opts{}, "BaseArchive")); diff != "" {
+				t.Errorf("opts (-got, +want) = %v", diff)
 			}
 		})
 	}
