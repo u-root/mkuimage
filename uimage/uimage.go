@@ -647,7 +647,7 @@ func CreateInitramfs(l *llog.Logger, opts Opts) error {
 			BinaryDir: cmds.TargetDir(),
 		}
 		if err := cmds.Builder.Build(l, files, bOpts); err != nil {
-			return fmt.Errorf("error building: %v", err)
+			return fmt.Errorf("error building: %w", err)
 		}
 	}
 

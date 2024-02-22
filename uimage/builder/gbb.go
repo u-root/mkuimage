@@ -80,12 +80,12 @@ func (b *GBBBuilder) Build(l *llog.Logger, af *initramfs.Files, opts Opts) error
 		var errGopath *bb.ErrGopathBuild
 		var errGomod *bb.ErrModuleBuild
 		if errors.As(err, &errGopath) {
-			return fmt.Errorf("preserving bb generated source directory at %s due to error. To reproduce build, `cd %s` and `GO111MODULE=off GOPATH=%s go build`: %w", opts.TempDir, errGopath.CmdDir, errGopath.GOPATH, err)
+			return fmt.Errorf("%w: to reproduce build, `cd %s` and `GO111MODULE=off GOPATH=%s go build`: %w", ErrBusyboxFailed, errGopath.CmdDir, errGopath.GOPATH, err)
 		}
 		if errors.As(err, &errGomod) {
-			return fmt.Errorf("preserving bb generated source directory at %s due to error. To debug build, `cd %s` and use `go build` to build, or `go mod [why|tidy|graph]` to debug dependencies, or `go list -m all` to list all dependency versions:\n%w", opts.TempDir, errGomod.CmdDir, err)
+			return fmt.Errorf("%w: to debug build, `cd %s` and use `go build` to build, or `go mod [why|tidy|graph]` to debug dependencies, or `go list -m all` to list all dependency versions:\n%w", ErrBusyboxFailed, errGomod.CmdDir, err)
 		}
-		return fmt.Errorf("preserving bb generated source directory at %s due to error:\n%w", opts.TempDir, err)
+		return fmt.Errorf("%w: %w", ErrBusyboxFailed, err)
 	}
 
 	if err := af.AddFile(bbPath, "bbin/bb"); err != nil {
