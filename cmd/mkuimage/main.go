@@ -18,6 +18,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/uimage"
+	"github.com/u-root/mkuimage/uimage/builder"
 	"github.com/u-root/mkuimage/uimage/uflags"
 	"github.com/u-root/uio/llog"
 )
@@ -137,19 +138,20 @@ func Main(l *llog.Logger, env *golang.Environ, f *uflags.Flags) error {
 			v, recommendedVersions, recommendedVersions[0])
 	}
 
+	keepTempDir := f.KeepTempDir
 	if f.TempDir == "" {
 		var err error
 		f.TempDir, err = os.MkdirTemp("", "u-root")
 		if err != nil {
 			return err
 		}
-		if f.KeepTempDir {
-			defer func() {
+		defer func() {
+			if keepTempDir {
 				l.Infof("Keeping temp dir %s", f.TempDir)
-			}()
-		} else {
-			defer os.RemoveAll(f.TempDir)
-		}
+			} else {
+				os.RemoveAll(f.TempDir)
+			}
+		}()
 	} else if _, err := os.Stat(f.TempDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(f.TempDir, 0o755); err != nil {
 			return fmt.Errorf("temporary directory %q did not exist; tried to mkdir but failed: %v", f.TempDir, err)
@@ -166,5 +168,11 @@ func Main(l *llog.Logger, env *golang.Environ, f *uflags.Flags) error {
 	if err != nil {
 		return err
 	}
-	return uimage.Create(l, append(m, more...)...)
+
+	err = uimage.Create(l, append(m, more...)...)
+	if errors.Is(err, builder.ErrBusyboxFailed) {
+		l.Errorf("Preserving temp dir due to busybox build error")
+		keepTempDir = true
+	}
+	return err
 }
