@@ -19,7 +19,7 @@ import (
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/uimage"
 	"github.com/u-root/mkuimage/uimage/builder"
-	"github.com/u-root/mkuimage/uimage/uflags"
+	"github.com/u-root/mkuimage/uimage/mkuimage"
 	"github.com/u-root/uio/llog"
 )
 
@@ -68,8 +68,8 @@ func main() {
 	}
 
 	env := golang.Default(golang.DisableCGO())
-	f := &uflags.Flags{
-		Commands: uflags.CommandFlags{
+	f := &mkuimage.Flags{
+		Commands: mkuimage.CommandFlags{
 			Builder:   "bb",
 			BuildOpts: &golang.BuildOpts{},
 		},
@@ -89,8 +89,13 @@ func main() {
 		l.Warnf("GOOS is not linux. Did you mean to set GOOS=linux?")
 	}
 
+	m := []uimage.Modifier{
+		uimage.WithReplaceEnv(env),
+		uimage.WithBaseArchive(uimage.DefaultRamfs()),
+		uimage.WithCPIOOutput(defaultFile(env)),
+	}
 	// Main is in a separate functions so defers run on return.
-	if err := Main(l, env, f); err != nil {
+	if err := Main(l, m, env, f); err != nil {
 		l.Errorf("Build error: %v", err)
 		return
 	}
@@ -124,7 +129,7 @@ func defaultFile(env *golang.Environ) string {
 
 // Main is a separate function so defers are run on return, which they wouldn't
 // on exit.
-func Main(l *llog.Logger, env *golang.Environ, f *uflags.Flags) error {
+func Main(l *llog.Logger, base []uimage.Modifier, env *golang.Environ, f *mkuimage.Flags) error {
 	v, err := env.Version()
 	if err != nil {
 		l.Infof("Could not get environment's Go version, using runtime's version: %v", err)
@@ -159,17 +164,12 @@ func Main(l *llog.Logger, env *golang.Environ, f *uflags.Flags) error {
 	}
 
 	// Set defaults.
-	m := []uimage.Modifier{
-		uimage.WithReplaceEnv(env),
-		uimage.WithBaseArchive(uimage.DefaultRamfs()),
-		uimage.WithCPIOOutput(defaultFile(env)),
-	}
 	more, err := f.Modifiers(flag.Args()...)
 	if err != nil {
 		return err
 	}
 
-	err = uimage.Create(l, append(m, more...)...)
+	err = uimage.Create(l, append(base, more...)...)
 	if errors.Is(err, builder.ErrBusyboxFailed) {
 		l.Errorf("Preserving temp dir due to busybox build error")
 		keepTempDir = true

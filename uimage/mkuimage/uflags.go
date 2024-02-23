@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package uflags defines mkuimage flags.
-package uflags
+// Package mkuimage defines mkuimage flags and creation function.
+package mkuimage
 
 import (
 	"flag"
