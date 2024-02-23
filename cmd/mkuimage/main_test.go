@@ -38,6 +38,17 @@ func hasTempDir(t *testing.T, output string) {
 	}
 }
 
+func dirExists(name string) func(t *testing.T, output string) {
+	return func(t *testing.T, output string) {
+		t.Helper()
+		if fi, err := os.Stat(name); err != nil {
+			t.Error(err)
+		} else if !fi.IsDir() {
+			t.Errorf("Stat(%s) = %v, want directory", name, fi)
+		}
+	}
+}
+
 func TestUrootCmdline(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -71,6 +82,7 @@ func TestUrootCmdline(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(sampledir, "bar"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	tempDir := filepath.Join(t.TempDir(), "tempdir")
 
 	type testCase struct {
 		name       string
@@ -212,6 +224,45 @@ func TestUrootCmdline(t *testing.T) {
 				"github.com/u-root/u-root/cmds/core/echo",
 			},
 		},
+		{
+			name: "build invalid",
+			args: []string{
+				"-build=source",
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
+			exitCode: 1,
+		},
+		{
+			name: "build invalid",
+			args: []string{
+				"-build=source",
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
+			exitCode: 1,
+		},
+		{
+			name: "arch invalid preserves temp dir",
+			env:  []string{"GOARCH=doesnotexist"},
+			args: []string{
+				"--defaultsh=echo",
+				"github.com/u-root/u-root/cmds/core/echo",
+				"github.com/u-root/u-root/cmds/core/init",
+			},
+			exitCode:   1,
+			wantOutput: hasTempDir,
+		},
+		{
+			name: "specify temp dir",
+			args: []string{
+				"--tmp-dir=" + tempDir,
+				"github.com/u-root/u-root/cmds/core/echo",
+				"github.com/u-root/u-root/cmds/core/init",
+			},
+			exitCode:   1,
+			wantOutput: dirExists(tempDir),
+		},
 	}
 
 	for _, tt := range append(noCmdTests, bareTests...) {
@@ -283,7 +334,6 @@ func buildIt(t *testing.T, execPath string, args, env []string, gocoverdir strin
 
 	c := exec.Command(execPath, args...)
 	c.Env = append(os.Environ(), env...)
-	c.Env = append(c.Env, golang.Default().Env()...)
 	c.Env = append(c.Env, "GOCOVERDIR="+gocoverdir)
 	out, err := c.CombinedOutput()
 	t.Logf("Output:\n%s", out)
