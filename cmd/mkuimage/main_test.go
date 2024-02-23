@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
@@ -21,11 +22,6 @@ import (
 	itest "github.com/u-root/mkuimage/uimage/initramfs/test"
 	"golang.org/x/sync/errgroup"
 )
-
-var twocmds = []string{
-	"github.com/u-root/u-root/cmds/core/ls",
-	"github.com/u-root/u-root/cmds/core/init",
-}
 
 func TestUrootCmdline(t *testing.T) {
 	wd, err := os.Getwd()
@@ -65,7 +61,7 @@ func TestUrootCmdline(t *testing.T) {
 		name       string
 		env        []string
 		args       []string
-		err        error
+		exitCode   int
 		validators []itest.ArchiveValidator
 	}
 
@@ -74,7 +70,6 @@ func TestUrootCmdline(t *testing.T) {
 			name: "include one extra file",
 			args: []string{"-nocmd", "-files=/bin/bash"},
 			env:  []string{"GO111MODULE=off"},
-			err:  nil,
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "bin/bash"},
 			},
@@ -83,7 +78,6 @@ func TestUrootCmdline(t *testing.T) {
 			name: "fix usage of an absolute path",
 			args: []string{"-nocmd", fmt.Sprintf("-files=%s:/bin", sampledir)},
 			env:  []string{"GO111MODULE=off"},
-			err:  nil,
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "/bin/foo"},
 				itest.HasFile{Path: "/bin/bar"},
@@ -122,7 +116,6 @@ func TestUrootCmdline(t *testing.T) {
 		{
 			name: "uinitcmd",
 			args: []string{"-uinitcmd=echo foobar fuzz", "-defaultsh=", "github.com/u-root/u-root/cmds/core/init", "github.com/u-root/u-root/cmds/core/echo"},
-			err:  nil,
 			validators: []itest.ArchiveValidator{
 				itest.HasRecord{R: cpio.Symlink("bin/uinit", "../bbin/echo")},
 				itest.HasContent{
@@ -133,8 +126,12 @@ func TestUrootCmdline(t *testing.T) {
 		},
 		{
 			name: "binary build",
-			args: []string{"-build=binary", "-defaultsh=", "github.com/u-root/u-root/cmds/core/init", "github.com/u-root/u-root/cmds/core/echo"},
-			err:  nil,
+			args: []string{
+				"-build=binary",
+				"-defaultsh=",
+				"github.com/u-root/u-root/cmds/core/init",
+				"github.com/u-root/u-root/cmds/core/echo",
+			},
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "bin/init"},
 				itest.HasFile{Path: "bin/echo"},
@@ -143,14 +140,20 @@ func TestUrootCmdline(t *testing.T) {
 		},
 		{
 			name: "hosted mode",
-			args: append([]string{"-base=/dev/null", "-defaultsh=", "-initcmd="}, twocmds...),
+			args: []string{
+				"-base=/dev/null",
+				"-defaultsh=",
+				"-initcmd=",
+				"github.com/u-root/u-root/cmds/core/ls",
+				"github.com/u-root/u-root/cmds/core/init",
+			},
 		},
 		{
 			name: "AMD64 build",
 			env:  []string{"GOARCH=amd64"},
 			args: []string{
+				"-defaultsh=echo",
 				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/elvish",
 				"github.com/u-root/u-root/cmds/core/echo",
 			},
 		},
@@ -158,8 +161,8 @@ func TestUrootCmdline(t *testing.T) {
 			name: "ARM7 build",
 			env:  []string{"GOARCH=arm", "GOARM=7"},
 			args: []string{
+				"-defaultsh=",
 				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/elvish",
 				"github.com/u-root/u-root/cmds/core/echo",
 			},
 		},
@@ -167,8 +170,8 @@ func TestUrootCmdline(t *testing.T) {
 			name: "ARM64 build",
 			env:  []string{"GOARCH=arm64"},
 			args: []string{
+				"-defaultsh=",
 				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/elvish",
 				"github.com/u-root/u-root/cmds/core/echo",
 			},
 		},
@@ -176,8 +179,8 @@ func TestUrootCmdline(t *testing.T) {
 			name: "RISCV 64bit build",
 			env:  []string{"GOARCH=riscv64"},
 			args: []string{
+				"-defaultsh=",
 				"github.com/u-root/u-root/cmds/core/init",
-				"github.com/u-root/u-root/cmds/core/elvish",
 				"github.com/u-root/u-root/cmds/core/echo",
 			},
 		},
@@ -192,18 +195,25 @@ func TestUrootCmdline(t *testing.T) {
 
 			g.Go(func() error {
 				var err error
-				f1, sum1, err = buildIt(t, execPath, tt.args, tt.env, tt.err, gocoverdir)
+				f1, sum1, err = buildIt(t, execPath, tt.args, tt.env, gocoverdir)
 				return err
 			})
 
 			g.Go(func() error {
 				var err error
-				f2, sum2, err = buildIt(t, execPath, tt.args, tt.env, tt.err, gocoverdir)
+				f2, sum2, err = buildIt(t, execPath, tt.args, tt.env, gocoverdir)
 				return err
 			})
 
-			if err := g.Wait(); err != nil {
-				t.Fatal(err)
+			var exitErr *exec.ExitError
+			if err := g.Wait(); errors.As(err, &exitErr) {
+				if ec := exitErr.Sys().(syscall.WaitStatus).ExitStatus(); ec != tt.exitCode {
+					t.Errorf("mkuimage exit code = %d, want %d", ec, tt.exitCode)
+				}
+				return
+			} else if err != nil {
+				t.Errorf("mkuimage failed: %v", err)
+				return
 			}
 
 			a, err := itest.ReadArchive(f1.Name())
@@ -225,7 +235,7 @@ func TestUrootCmdline(t *testing.T) {
 	}
 }
 
-func buildIt(t *testing.T, execPath string, args, env []string, want error, gocoverdir string) (*os.File, []byte, error) {
+func buildIt(t *testing.T, execPath string, args, env []string, gocoverdir string) (*os.File, []byte, error) {
 	t.Helper()
 	initramfs, err := os.CreateTemp(t.TempDir(), "u-root-")
 	if err != nil {
@@ -241,10 +251,10 @@ func buildIt(t *testing.T, execPath string, args, env []string, want error, goco
 	c.Env = append(os.Environ(), env...)
 	c.Env = append(c.Env, golang.Default().Env()...)
 	c.Env = append(c.Env, "GOCOVERDIR="+gocoverdir)
-	if out, err := c.CombinedOutput(); err != want {
-		return nil, nil, fmt.Errorf("Error: %v\nOutput:\n%s", err, out)
-	} else if err != nil {
-		return initramfs, nil, err
+	out, err := c.CombinedOutput()
+	t.Logf("Output:\n%s", out)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	h1 := sha256.New()

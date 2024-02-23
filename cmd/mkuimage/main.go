@@ -88,7 +88,7 @@ func main() {
 	}
 	if err := mkuimage.CreateUimage(l, m, f, flag.Args()); err != nil {
 		l.Errorf("mkuimage error: %v", err)
-		return
+		os.Exit(1)
 	}
 
 	if stat, err := os.Stat(f.OutputFile); err == nil && f.ArchiveFormat == "cpio" {
