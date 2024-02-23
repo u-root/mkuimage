@@ -12,13 +12,10 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"runtime"
-	"strings"
 
 	"github.com/dustin/go-humanize"
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/mkuimage/uimage"
-	"github.com/u-root/mkuimage/uimage/builder"
 	"github.com/u-root/mkuimage/uimage/mkuimage"
 	"github.com/u-root/uio/llog"
 )
@@ -84,19 +81,13 @@ func main() {
 	l.RegisterVerboseFlag(flag.CommandLine, "v", slog.LevelDebug)
 	flag.Parse()
 
-	l.Infof("Build environment: %s", env)
-	if env.GOOS != "linux" {
-		l.Warnf("GOOS is not linux. Did you mean to set GOOS=linux?")
-	}
-
 	m := []uimage.Modifier{
 		uimage.WithReplaceEnv(env),
 		uimage.WithBaseArchive(uimage.DefaultRamfs()),
 		uimage.WithCPIOOutput(defaultFile(env)),
 	}
-	// Main is in a separate functions so defers run on return.
-	if err := Main(l, m, env, f); err != nil {
-		l.Errorf("Build error: %v", err)
+	if err := mkuimage.CreateUimage(l, m, f, flag.Args()); err != nil {
+		l.Errorf("mkuimage error: %v", err)
 		return
 	}
 
@@ -105,74 +96,9 @@ func main() {
 	}
 }
 
-var recommendedVersions = []string{
-	"go1.20",
-	"go1.21",
-	"go1.22",
-}
-
-func isRecommendedVersion(v string) bool {
-	for _, r := range recommendedVersions {
-		if strings.HasPrefix(v, r) {
-			return true
-		}
-	}
-	return false
-}
-
 func defaultFile(env *golang.Environ) string {
 	if len(env.GOOS) == 0 || len(env.GOARCH) == 0 {
 		return "/tmp/initramfs.cpio"
 	}
 	return fmt.Sprintf("/tmp/initramfs.%s_%s.cpio", env.GOOS, env.GOARCH)
-}
-
-// Main is a separate function so defers are run on return, which they wouldn't
-// on exit.
-func Main(l *llog.Logger, base []uimage.Modifier, env *golang.Environ, f *mkuimage.Flags) error {
-	v, err := env.Version()
-	if err != nil {
-		l.Infof("Could not get environment's Go version, using runtime's version: %v", err)
-		v = runtime.Version()
-	}
-	if !isRecommendedVersion(v) {
-		l.Warnf(`You are not using one of the recommended Go versions (have = %s, recommended = %v).
-			Some packages may not compile.
-			Go to https://golang.org/doc/install to find out how to install a newer version of Go,
-			or use https://godoc.org/golang.org/dl/%s to install an additional version of Go.`,
-			v, recommendedVersions, recommendedVersions[0])
-	}
-
-	keepTempDir := f.KeepTempDir
-	if f.TempDir == "" {
-		var err error
-		f.TempDir, err = os.MkdirTemp("", "u-root")
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if keepTempDir {
-				l.Infof("Keeping temp dir %s", f.TempDir)
-			} else {
-				os.RemoveAll(f.TempDir)
-			}
-		}()
-	} else if _, err := os.Stat(f.TempDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(f.TempDir, 0o755); err != nil {
-			return fmt.Errorf("temporary directory %q did not exist; tried to mkdir but failed: %v", f.TempDir, err)
-		}
-	}
-
-	// Set defaults.
-	more, err := f.Modifiers(flag.Args()...)
-	if err != nil {
-		return err
-	}
-
-	err = uimage.Create(l, append(base, more...)...)
-	if errors.Is(err, builder.ErrBusyboxFailed) {
-		l.Errorf("Preserving temp dir due to busybox build error")
-		keepTempDir = true
-	}
-	return err
 }
