@@ -19,7 +19,6 @@ require (
 	github.com/josharian/native v1.1.0 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mdlayher/packet v1.1.2 // indirect
 	github.com/mdlayher/socket v0.5.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
@@ -27,8 +26,6 @@ require (
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
-	golang.org/dl v0.0.0-20240206215513-68cc34b6ca6f // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
-	src.elv.sh v0.16.0-rc1.0.20220116211855-fda62502ad7f // indirect
 )

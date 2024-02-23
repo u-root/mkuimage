@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"testing"
@@ -22,6 +23,20 @@ import (
 	itest "github.com/u-root/mkuimage/uimage/initramfs/test"
 	"golang.org/x/sync/errgroup"
 )
+
+func hasTempDir(t *testing.T, output string) {
+	t.Helper()
+	tempDir := regexp.MustCompile(`Keeping temp dir (.+)`).FindStringSubmatch(output)
+	if tempDir == nil {
+		t.Errorf("Keeping temp dir not found in output")
+		return
+	}
+	if fi, err := os.Stat(tempDir[1]); err != nil {
+		t.Error(err)
+	} else if !fi.IsDir() {
+		t.Errorf("Stat(%s) = %v, want directory", tempDir[1], fi)
+	}
+}
 
 func TestUrootCmdline(t *testing.T) {
 	wd, err := os.Getwd()
@@ -63,6 +78,7 @@ func TestUrootCmdline(t *testing.T) {
 		args       []string
 		exitCode   int
 		validators []itest.ArchiveValidator
+		wantOutput func(*testing.T, string)
 	}
 
 	noCmdTests := []testCase{
@@ -153,9 +169,21 @@ func TestUrootCmdline(t *testing.T) {
 			env:  []string{"GOARCH=amd64"},
 			args: []string{
 				"-defaultsh=echo",
-				"github.com/u-root/u-root/cmds/core/init",
 				"github.com/u-root/u-root/cmds/core/echo",
+				"github.com/u-root/u-root/cmds/core/init",
 			},
+		},
+		{
+			name: "AMD64 build with temp dir",
+			env:  []string{"GOARCH=amd64"},
+			args: []string{
+				"--keep-tmp-dir",
+				"--defaultsh=echo",
+				"github.com/u-root/u-root/cmds/core/echo",
+				"github.com/u-root/u-root/cmds/core/init",
+			},
+			exitCode:   1,
+			wantOutput: hasTempDir,
 		},
 		{
 			name: "ARM7 build",
@@ -191,22 +219,28 @@ func TestUrootCmdline(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var g errgroup.Group
 			var f1, f2 *os.File
+			var out string
 			var sum1, sum2 []byte
 
 			g.Go(func() error {
 				var err error
-				f1, sum1, err = buildIt(t, execPath, tt.args, tt.env, gocoverdir)
+				f1, out, sum1, err = buildIt(t, execPath, tt.args, tt.env, gocoverdir)
 				return err
 			})
 
 			g.Go(func() error {
 				var err error
-				f2, sum2, err = buildIt(t, execPath, tt.args, tt.env, gocoverdir)
+				f2, _, sum2, err = buildIt(t, execPath, tt.args, tt.env, gocoverdir)
 				return err
 			})
 
+			err := g.Wait()
+			if tt.wantOutput != nil {
+				tt.wantOutput(t, out)
+			}
+
 			var exitErr *exec.ExitError
-			if err := g.Wait(); errors.As(err, &exitErr) {
+			if errors.As(err, &exitErr) {
 				if ec := exitErr.Sys().(syscall.WaitStatus).ExitStatus(); ec != tt.exitCode {
 					t.Errorf("mkuimage exit code = %d, want %d", ec, tt.exitCode)
 				}
@@ -235,11 +269,11 @@ func TestUrootCmdline(t *testing.T) {
 	}
 }
 
-func buildIt(t *testing.T, execPath string, args, env []string, gocoverdir string) (*os.File, []byte, error) {
+func buildIt(t *testing.T, execPath string, args, env []string, gocoverdir string) (*os.File, string, []byte, error) {
 	t.Helper()
 	initramfs, err := os.CreateTemp(t.TempDir(), "u-root-")
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 
 	// Use the u-root command outside of the $GOPATH tree to make sure it
@@ -254,14 +288,14 @@ func buildIt(t *testing.T, execPath string, args, env []string, gocoverdir strin
 	out, err := c.CombinedOutput()
 	t.Logf("Output:\n%s", out)
 	if err != nil {
-		return nil, nil, err
+		return nil, string(out), nil, err
 	}
 
 	h1 := sha256.New()
 	if _, err := io.Copy(h1, initramfs); err != nil {
-		return nil, nil, err
+		return nil, string(out), nil, err
 	}
-	return initramfs, h1.Sum(nil), nil
+	return initramfs, string(out), h1.Sum(nil), nil
 }
 
 func TestCheckArgs(t *testing.T) {
