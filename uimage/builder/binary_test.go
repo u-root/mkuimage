@@ -17,7 +17,7 @@ func TestBinaryBuild(t *testing.T) {
 	opts := Opts{
 		Env: golang.Default(golang.DisableCGO()),
 		Packages: []string{
-			"../../cmd/mkuimage",
+			"../../cmd/uimage",
 			"github.com/u-root/u-root/cmds/core/init",
 			"cmd/test2json",
 		},
@@ -30,7 +30,7 @@ func TestBinaryBuild(t *testing.T) {
 	}
 
 	mustContain := []string{
-		"bin/mkuimage",
+		"bin/uimage",
 		"bin/test2json",
 		"bin/init",
 	}

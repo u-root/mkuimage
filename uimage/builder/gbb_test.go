@@ -21,7 +21,7 @@ func TestGBBBuild(t *testing.T) {
 	opts := Opts{
 		Env: golang.Default(golang.DisableCGO()),
 		Packages: []string{
-			"../../cmd/mkuimage",
+			"../../cmd/uimage",
 		},
 		TempDir: dir,
 	}
@@ -32,7 +32,7 @@ func TestGBBBuild(t *testing.T) {
 	}
 
 	mustContain := []string{
-		"bbin/mkuimage",
+		"bbin/uimage",
 		"bbin/bb",
 	}
 	for _, name := range mustContain {
@@ -53,7 +53,7 @@ func TestGBBBuildError(t *testing.T) {
 			opts: Opts{
 				Env: golang.Default(golang.DisableCGO()),
 				Packages: []string{
-					"../../cmd/mkuimage",
+					"../../cmd/uimage",
 				},
 				BinaryDir: "bbin",
 			},
@@ -63,7 +63,7 @@ func TestGBBBuildError(t *testing.T) {
 			opts: Opts{
 				TempDir: t.TempDir(),
 				Packages: []string{
-					"../../cmd/mkuimage",
+					"../../cmd/uimage",
 				},
 				BinaryDir: "bbin",
 			},
@@ -74,7 +74,7 @@ func TestGBBBuildError(t *testing.T) {
 				Env:     golang.Default(golang.DisableCGO()),
 				TempDir: t.TempDir(),
 				Packages: []string{
-					"../../cmd/mkuimage",
+					"../../cmd/uimage",
 				},
 				BinaryDir: "bbin",
 			},
@@ -88,12 +88,12 @@ func TestGBBBuildError(t *testing.T) {
 				Env:     golang.Default(golang.DisableCGO()),
 				TempDir: t.TempDir(),
 				Packages: []string{
-					"../../cmd/mkuimage",
+					"../../cmd/uimage",
 				},
 				BinaryDir: "bbin",
 			},
 			files: []cpio.Record{
-				cpio.StaticFile("bbin/mkuimage", "", 0o777),
+				cpio.StaticFile("bbin/uimage", "", 0o777),
 			},
 			want: os.ErrExist,
 		},
@@ -102,12 +102,12 @@ func TestGBBBuildError(t *testing.T) {
 				Env:     golang.Default(golang.DisableCGO()),
 				TempDir: t.TempDir(),
 				Packages: []string{
-					"../../cmd/mkuimage",
+					"../../cmd/uimage",
 				},
 				BinaryDir: "bbin",
 			},
 			files: []cpio.Record{
-				cpio.StaticFile("bbin/mkuimage", "", 0o777),
+				cpio.StaticFile("bbin/uimage", "", 0o777),
 			},
 			gbb:  GBBBuilder{ShellBang: true},
 			want: os.ErrExist,
