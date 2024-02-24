@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/u-root/mkuimage/uimage"
 	"github.com/u-root/mkuimage/uimage/builder"
 	"github.com/u-root/mkuimage/uimage/templates"
@@ -113,5 +114,12 @@ func CreateUimage(l *llog.Logger, base []uimage.Modifier, tf *TemplateFlags, f *
 		l.Errorf("Preserving temp dir due to busybox build error")
 		keepTempDir = true
 	}
-	return err
+	if err != nil {
+		return err
+	}
+
+	if stat, err := os.Stat(f.OutputFile); err == nil && f.ArchiveFormat == "cpio" {
+		l.Infof("Successfully built %q (size %d bytes -- %s).", f.OutputFile, stat.Size(), humanize.IBytes(uint64(stat.Size())))
+	}
+	return nil
 }

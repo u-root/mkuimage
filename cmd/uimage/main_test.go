@@ -93,10 +93,10 @@ func TestUrootCmdline(t *testing.T) {
 		wantOutput func(*testing.T, string)
 	}
 
-	noCmdTests := []testCase{
+	tests := []testCase{
 		{
 			name: "include one extra file",
-			args: []string{"-nocmd", "-files=/bin/bash"},
+			args: []string{"make", "-nocmd", "-files=/bin/bash"},
 			env:  []string{"GO111MODULE=off"},
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "bin/bash"},
@@ -104,7 +104,7 @@ func TestUrootCmdline(t *testing.T) {
 		},
 		{
 			name: "fix usage of an absolute path",
-			args: []string{"-nocmd", fmt.Sprintf("-files=%s:/bin", sampledir)},
+			args: []string{"make", "-nocmd", fmt.Sprintf("-files=%s:/bin", sampledir)},
 			env:  []string{"GO111MODULE=off"},
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "/bin/foo"},
@@ -113,7 +113,7 @@ func TestUrootCmdline(t *testing.T) {
 		},
 		{
 			name: "include multiple extra files",
-			args: []string{"-nocmd", "-files=/bin/bash", "-files=/bin/ls", fmt.Sprintf("-files=%s", samplef.Name())},
+			args: []string{"make", "-nocmd", "-files=/bin/bash", "-files=/bin/ls", fmt.Sprintf("-files=%s", samplef.Name())},
 			env:  []string{"GO111MODULE=off"},
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "bin/bash"},
@@ -123,7 +123,7 @@ func TestUrootCmdline(t *testing.T) {
 		},
 		{
 			name: "include one extra file with rename",
-			args: []string{"-nocmd", "-files=/bin/bash:bin/bush"},
+			args: []string{"make", "-nocmd", "-files=/bin/bash:bin/bush"},
 			env:  []string{"GO111MODULE=off"},
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "bin/bush"},
@@ -131,19 +131,16 @@ func TestUrootCmdline(t *testing.T) {
 		},
 		{
 			name: "supplied file can be uinit",
-			args: []string{"-nocmd", "-files=/bin/bash:bin/bash", "-uinitcmd=/bin/bash"},
+			args: []string{"make", "-nocmd", "-files=/bin/bash:bin/bash", "-uinitcmd=/bin/bash"},
 			env:  []string{"GO111MODULE=off"},
 			validators: []itest.ArchiveValidator{
 				itest.HasFile{Path: "bin/bash"},
 				itest.HasRecord{R: cpio.Symlink("bin/uinit", "bash")},
 			},
 		},
-	}
-
-	bareTests := []testCase{
 		{
 			name: "uinitcmd",
-			args: []string{"-uinitcmd=echo foobar fuzz", "-defaultsh=", "github.com/u-root/u-root/cmds/core/init", "github.com/u-root/u-root/cmds/core/echo"},
+			args: []string{"make", "-uinitcmd=echo foobar fuzz", "-defaultsh=", "github.com/u-root/u-root/cmds/core/init", "github.com/u-root/u-root/cmds/core/echo"},
 			validators: []itest.ArchiveValidator{
 				itest.HasRecord{R: cpio.Symlink("bin/uinit", "../bbin/echo")},
 				itest.HasContent{
@@ -155,6 +152,7 @@ func TestUrootCmdline(t *testing.T) {
 		{
 			name: "binary build",
 			args: []string{
+				"make",
 				"-build=binary",
 				"-defaultsh=",
 				"github.com/u-root/u-root/cmds/core/init",
@@ -169,6 +167,7 @@ func TestUrootCmdline(t *testing.T) {
 		{
 			name: "hosted mode",
 			args: []string{
+				"make",
 				"-base=/dev/null",
 				"-defaultsh=",
 				"-initcmd=",
@@ -180,6 +179,7 @@ func TestUrootCmdline(t *testing.T) {
 			name: "AMD64 build",
 			env:  []string{"GOARCH=amd64"},
 			args: []string{
+				"make",
 				"-defaultsh=echo",
 				"github.com/u-root/u-root/cmds/core/echo",
 				"github.com/u-root/u-root/cmds/core/init",
@@ -189,6 +189,7 @@ func TestUrootCmdline(t *testing.T) {
 			name: "AMD64 build with temp dir",
 			env:  []string{"GOARCH=amd64"},
 			args: []string{
+				"make",
 				"--keep-tmp-dir",
 				"--defaultsh=echo",
 				"github.com/u-root/u-root/cmds/core/echo",
@@ -201,6 +202,7 @@ func TestUrootCmdline(t *testing.T) {
 			name: "ARM7 build",
 			env:  []string{"GOARCH=arm", "GOARM=7"},
 			args: []string{
+				"make",
 				"-defaultsh=",
 				"github.com/u-root/u-root/cmds/core/init",
 				"github.com/u-root/u-root/cmds/core/echo",
@@ -210,6 +212,7 @@ func TestUrootCmdline(t *testing.T) {
 			name: "ARM64 build",
 			env:  []string{"GOARCH=arm64"},
 			args: []string{
+				"make",
 				"-defaultsh=",
 				"github.com/u-root/u-root/cmds/core/init",
 				"github.com/u-root/u-root/cmds/core/echo",
@@ -219,6 +222,7 @@ func TestUrootCmdline(t *testing.T) {
 			name: "RISCV 64bit build",
 			env:  []string{"GOARCH=riscv64"},
 			args: []string{
+				"make",
 				"-defaultsh=",
 				"github.com/u-root/u-root/cmds/core/init",
 				"github.com/u-root/u-root/cmds/core/echo",
@@ -227,6 +231,7 @@ func TestUrootCmdline(t *testing.T) {
 		{
 			name: "build invalid",
 			args: []string{
+				"make",
 				"-build=source",
 				"github.com/u-root/u-root/cmds/core/init",
 				"github.com/u-root/u-root/cmds/core/echo",
@@ -237,6 +242,7 @@ func TestUrootCmdline(t *testing.T) {
 			name: "arch invalid preserves temp dir",
 			env:  []string{"GOARCH=doesnotexist"},
 			args: []string{
+				"make",
 				"--defaultsh=echo",
 				"github.com/u-root/u-root/cmds/core/echo",
 				"github.com/u-root/u-root/cmds/core/init",
@@ -247,6 +253,7 @@ func TestUrootCmdline(t *testing.T) {
 		{
 			name: "specify temp dir",
 			args: []string{
+				"make",
 				"--tmp-dir=" + tempDir,
 				"github.com/u-root/u-root/cmds/core/echo",
 				"github.com/u-root/u-root/cmds/core/init",
@@ -256,7 +263,12 @@ func TestUrootCmdline(t *testing.T) {
 		},
 		{
 			name: "template config",
-			args: []string{"-config-file=./testdata/test-config.yaml", "-v", "-config=coreconf"},
+			args: []string{
+				"make",
+				"-config-file=./testdata/test-config.yaml",
+				"-v",
+				"-config=coreconf",
+			},
 			validators: []itest.ArchiveValidator{
 				itest.HasRecord{R: cpio.CharDev("dev/tty", 0o666, 5, 0)},
 				itest.HasFile{Path: "bbin/bb"},
@@ -275,7 +287,12 @@ func TestUrootCmdline(t *testing.T) {
 		},
 		{
 			name: "template command",
-			args: []string{"-config-file=./testdata/test-config.yaml", "-v", "core"},
+			args: []string{
+				"make",
+				"-config-file=./testdata/test-config.yaml",
+				"-v",
+				"core",
+			},
 			validators: []itest.ArchiveValidator{
 				itest.HasRecord{R: cpio.CharDev("dev/tty", 0o666, 5, 0)},
 				itest.HasFile{Path: "bbin/bb"},
@@ -286,27 +303,27 @@ func TestUrootCmdline(t *testing.T) {
 		},
 		{
 			name:     "template config not found",
-			args:     []string{"-config-file=./testdata/test-config.yaml", "-v", "-config=foobar"},
+			args:     []string{"make", "-config-file=./testdata/test-config.yaml", "-v", "-config=foobar"},
 			exitCode: 1,
 		},
 		{
 			name:     "builder not found",
-			args:     []string{"-v", "build=source"},
+			args:     []string{"make", "-v", "build=source"},
 			exitCode: 1,
 		},
 		{
 			name:     "template file not found",
-			args:     []string{"-v", "-config-file=./testdata/doesnotexist"},
+			args:     []string{"make", "-v", "-config-file=./testdata/doesnotexist"},
 			exitCode: 1,
 		},
 		{
 			name:     "config not found with no default template",
-			args:     []string{"-v", "-config=foo"},
+			args:     []string{"make", "-v", "-config=foo"},
 			exitCode: 1,
 		},
 	}
 
-	for _, tt := range append(noCmdTests, bareTests...) {
+	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			var g errgroup.Group
@@ -334,11 +351,11 @@ func TestUrootCmdline(t *testing.T) {
 			var exitErr *exec.ExitError
 			if errors.As(err, &exitErr) {
 				if ec := exitErr.Sys().(syscall.WaitStatus).ExitStatus(); ec != tt.exitCode {
-					t.Errorf("mkuimage exit code = %d, want %d", ec, tt.exitCode)
+					t.Errorf("uimage exit code = %d, want %d", ec, tt.exitCode)
 				}
 				return
 			} else if err != nil {
-				t.Errorf("mkuimage failed: %v", err)
+				t.Errorf("uimage failed: %v", err)
 				return
 			}
 
@@ -370,8 +387,10 @@ func buildIt(t *testing.T, execPath string, args, env []string, gocoverdir strin
 
 	// Use the u-root command outside of the $GOPATH tree to make sure it
 	// still works.
-	args = append([]string{"-o", initramfs.Name()}, args...)
-	t.Logf("Commandline: %v mkuimage %v", strings.Join(env, " "), strings.Join(args, " "))
+	if len(args) > 0 {
+		args = append(append([]string{args[0]}, "-o", initramfs.Name()), args[1:]...)
+	}
+	t.Logf("Commandline: %v uimage %v", strings.Join(env, " "), strings.Join(args, " "))
 
 	c := exec.Command(execPath, args...)
 	c.Env = append(os.Environ(), env...)
@@ -387,25 +406,4 @@ func buildIt(t *testing.T, execPath string, args, env []string, gocoverdir strin
 		return nil, string(out), nil, err
 	}
 	return initramfs, string(out), h1.Sum(nil), nil
-}
-
-func TestCheckArgs(t *testing.T) {
-	for _, tt := range []struct {
-		name string
-		args []string
-		err  error
-	}{
-		{"-files is only arg", []string{"-files"}, errEmptyFilesArg},
-		{"-files followed by -files", []string{"-files", "-files"}, errEmptyFilesArg},
-		{"-files followed by any other switch", []string{"-files", "-abc"}, errEmptyFilesArg},
-		{"no args", []string{}, nil},
-		{"u-root alone", []string{"u-root"}, nil},
-		{"u-root with -files and other args", []string{"u-root", "-files", "/bin/bash", "core"}, nil},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := checkArgs(tt.args...); !errors.Is(err, tt.err) {
-				t.Errorf("%q: got %v, want %v", tt.args, err, tt.err)
-			}
-		})
-	}
 }
