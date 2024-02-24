@@ -27,27 +27,27 @@ $ go1.21.5 version
 # Now use go1.21.5 in place of go
 ```
 
-Download and install mkuimage either via git:
+Download and install uimage either via git:
 
 ```shell
 git clone https://github.com/u-root/mkuimage
-cd mkuimage/cmd/mkuimage
+cd mkuimage/cmd/uimage
 go install
 ```
 
 Or install directly with go:
 
 ```shell
-go install github.com/u-root/mkuimage/cmd/mkuimage@latest
+go install github.com/u-root/mkuimage/cmd/uimage@latest
 ```
 
 > [!NOTE]
-> The `mkuimage` command will end up in `$GOPATH/bin/mkuimage`, so you may
+> The `uimage` command will end up in `$GOPATH/bin/uimage`, so you may
 > need to add `$GOPATH/bin` to your `$PATH`.
 
 ## Examples
 
-Here are some examples of using the `mkuimage` command to build an initramfs.
+Here are some examples of using the `uimage` command to build an initramfs.
 
 ```shell
 git clone https://github.com/u-root/u-root
@@ -57,7 +57,7 @@ git clone https://github.com/u-root/cpu
 Build gobusybox binaries of these two commands and add to initramfs:
 
 ```shell
-$ mkuimage ./u-root/cmds/core/{init,gosh}
+$ uimage make ./u-root/cmds/core/{init,gosh}
 
 $ cpio -ivt < /tmp/initramfs.linux_amd64.cpio
 ...
@@ -70,7 +70,7 @@ lrwxrwxrwx   0 root     root            2 Jan  1  1970 bbin/init -> bb
 Add symlinks for shell and init:
 
 ```shell
-$ mkuimage -initcmd=init -defaultsh=gosh ./u-root/cmds/core/{init,gosh}
+$ uimage make -initcmd=init -defaultsh=gosh ./u-root/cmds/core/{init,gosh}
 
 $ cpio -ivt < /tmp/initramfs.linux_amd64.cpio
 ...
@@ -84,7 +84,7 @@ lrwxrwxrwx   0 root     root            9 Jan  1  1970 init -> bbin/init
 Build everything from core without ls and losetup:
 
 ```shell
-$ mkuimage ./u-root/cmds/core/* -./u-root/cmds/core/{ls,losetup}
+$ uimage make ./u-root/cmds/core/* -./u-root/cmds/core/{ls,losetup}
 ```
 
 Build an initramfs with init, gosh and cpud in a gobusybox binary:
@@ -99,7 +99,7 @@ Build an initramfs with init, gosh and cpud in a gobusybox binary:
 > To properly resolve these dependencies, head down to the [multi-module uimages section](#multi-module-uimages).
 
 ```shell
-$ mkuimage ./u-root/cmds/core/{init,gosh} ./cpu/cmds/cpud
+$ uimage make ./u-root/cmds/core/{init,gosh} ./cpu/cmds/cpud
 ...
 01:24:15 INFO GBB_STRICT is not set.
 01:24:15 INFO [WARNING] github.com/u-root/cpu/cmds/cpud depends on github.com/u-root/u-root @ version v0.11.1-0.20230913033713-004977728a9d
@@ -115,12 +115,12 @@ lrwxrwxrwx   0 root     root            2 Jan  1  1970 bbin/init -> bb
 ...
 ```
 
-`GBB_PATH` is a place that mkuimage will look for commands. Each colon-separated
+`GBB_PATH` is a place that uimage will look for commands. Each colon-separated
 `GBB_PATH` element is concatenated with patterns from the command-line and
 checked for existence. For example:
 
 ```shell
-GBB_PATH=$(pwd)/u-root:$(pwd)/cpu mkuimage \
+GBB_PATH=$(pwd)/u-root:$(pwd)/cpu uimage make \
     cmds/core/{init,gosh} \
     cmds/cpud
 
@@ -137,7 +137,7 @@ If you add binaries with `-files` are listed, their ldd dependencies will be
 included as well.
 
 ```shell
-$ mkuimage -files /bin/bash
+$ uimage make -files /bin/bash
 
 $ cpio -ivt < /tmp/initramfs.linux_amd64.cpio
 ...
@@ -156,7 +156,7 @@ lrwxrwxrwx   0 root     root           42 Jan  1  1970 lib64/ld-linux-x86-64.so.
 You can determine placement with colons:
 
 ```shell
-$ mkuimage -files "/bin/bash:sbin/sh"
+$ uimage make -files "/bin/bash:sbin/sh"
 
 $ cpio -ivt < /tmp/initramfs.linux_amd64.cpio
 ...
@@ -168,7 +168,7 @@ For example on Debian, if you want to add two kernel modules for testing,
 executing your currently booted kernel:
 
 ```shell
-$ mkuimage -files "$HOME/hello.ko:etc/hello.ko" -files "$HOME/hello2.ko:etc/hello2.ko" ./u-root/cmds/core/*
+$ uimage make -files "$HOME/hello.ko:etc/hello.ko" -files "$HOME/hello2.ko:etc/hello2.ko" ./u-root/cmds/core/*
 $ qemu-system-x86_64 -kernel /boot/vmlinuz-$(uname -r) -initrd /tmp/initramfs.linux_amd64.cpio
 ```
 
@@ -177,7 +177,7 @@ $ qemu-system-x86_64 -kernel /boot/vmlinuz-$(uname -r) -initrd /tmp/initramfs.li
 To cross compile for an ARM, on Linux:
 
 ```shell
-GOARCH=arm mkuimage ./u-root/cmds/core/*
+GOARCH=arm uimage make ./u-root/cmds/core/*
 ```
 
 If you are on OSX, and wish to build for Linux on AMD64:
@@ -213,7 +213,7 @@ has native uimage support.
 
 ## Multi-module uimages
 
-Rather than having mkuimage decide how to resolve dependencies across
+Rather than having uimage decide how to resolve dependencies across
 multi-module repositories, you may also create a go.mod with all commands you
 intend to use in them.
 
@@ -247,7 +247,7 @@ mod tidy` to add these dependencies to `go.mod`:
 ```sh
 go mod tidy
 
-mkuimage \
+uimage make \
   github.com/u-root/u-root/cmds/core/ip \
   github.com/u-root/u-root/cmds/core/init \
   github.com/hugelgupf/p9/cmd/p9ufs
@@ -255,12 +255,12 @@ mkuimage \
 
 ## Build Modes
 
-mkuimage can create an initramfs in two different modes, specified by `-build`:
+uimage can create an initramfs in two different modes, specified by `-build`:
 
 *   `bb` mode: One busybox-like binary comprising all the Go tools you ask to
     include.
     See [the gobusybox README for how it works](https://github.com/u-root/gobusybox).
-    In this mode, mkuimage copies and rewrites the source of the tools you asked
+    In this mode, uimage copies and rewrites the source of the tools you asked
     to include to be able to compile everything into one busybox-like binary.
 
 *   `binary` mode: each specified binary is compiled separately and all binaries
