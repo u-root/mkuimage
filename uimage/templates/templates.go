@@ -52,9 +52,9 @@ type Config struct {
 	BuildTags []string `yaml:"build_tags"`
 	Commands  []Command
 	Files     []string
-	Init      string
-	Uinit     string
-	Shell     string
+	Init      *string
+	Uinit     *string
+	Shell     *string
 }
 
 // Templates are a set of mkuimage build configs and command templates.
@@ -79,14 +79,20 @@ func (t *Templates) Uimage(config string) ([]uimage.Modifier, error) {
 	}
 	m := []uimage.Modifier{
 		uimage.WithFiles(c.Files...),
-		uimage.WithInit(c.Init),
-		uimage.WithUinitCommand(c.Uinit),
-		uimage.WithShell(c.Shell),
 		uimage.WithEnv(
 			golang.WithGOOS(c.GOOS),
 			golang.WithGOARCH(c.GOARCH),
 			golang.WithBuildTag(c.BuildTags...),
 		),
+	}
+	if c.Init != nil {
+		m = append(m, uimage.WithInit(*c.Init))
+	}
+	if c.Uinit != nil {
+		m = append(m, uimage.WithUinitCommand(*c.Uinit))
+	}
+	if c.Shell != nil {
+		m = append(m, uimage.WithShell(*c.Shell))
 	}
 	for _, cmds := range c.Commands {
 		switch cmds.Builder {
