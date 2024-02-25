@@ -371,7 +371,7 @@ func TestCreateInitramfs(t *testing.T) {
 						Builder: builder.Binary,
 						Packages: []string{
 							"github.com/u-root/u-root/cmds/core/cp",
-							"github.com/u-root/u-root/cmds/core/dd",
+							"github.com/u-root/u-root/cmds/core/echo",
 						},
 					},
 				},
@@ -388,7 +388,7 @@ func TestCreateInitramfs(t *testing.T) {
 
 				// binary mode.
 				itest.HasFile{Path: "bin/cp"},
-				itest.HasFile{Path: "bin/dd"},
+				itest.HasFile{Path: "bin/echo"},
 			},
 		},
 		{
@@ -833,7 +833,7 @@ func TestCreateInitramfsWithAPI(t *testing.T) {
 				),
 				WithBinaryCommands(
 					"github.com/u-root/u-root/cmds/core/cp",
-					"github.com/u-root/u-root/cmds/core/dd",
+					"github.com/u-root/u-root/cmds/core/echo",
 				),
 			},
 			validators: []itest.ArchiveValidator{
@@ -848,7 +848,7 @@ func TestCreateInitramfsWithAPI(t *testing.T) {
 
 				// binary mode.
 				itest.HasFile{Path: "bin/cp"},
-				itest.HasFile{Path: "bin/dd"},
+				itest.HasFile{Path: "bin/echo"},
 			},
 		},
 		{
