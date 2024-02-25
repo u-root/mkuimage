@@ -39,8 +39,8 @@ func TestOpts(t *testing.T) {
 			f: &Flags{
 				Commands:      CommandFlags{Builder: "bb"},
 				ArchiveFormat: "cpio",
-				Init:          "init",
-				Uinit:         "gosh script.sh",
+				Init:          String("init"),
+				Uinit:         String("gosh script.sh"),
 				OutputFile:    "./foo.cpio",
 				Files:         []string{"/bin/bash"},
 			},
@@ -80,7 +80,7 @@ func TestOpts(t *testing.T) {
 						GOOS:      "plan9",
 						GOARCH:    "amd64",
 						BuildTags: []string{"grpcnotrace"},
-						Uinit:     "gosh script.sh",
+						Uinit:     String("gosh script.sh"),
 						Files:     []string{"foobar"},
 						Commands: []templates.Command{
 							{
@@ -103,8 +103,8 @@ func TestOpts(t *testing.T) {
 			f: &Flags{
 				Commands:      CommandFlags{Builder: "bb"},
 				ArchiveFormat: "cpio",
-				Init:          "init",
-				Uinit:         "cat",
+				Init:          String("init"),
+				Uinit:         String("cat"),
 				OutputFile:    "./foo.cpio",
 				Files:         []string{"/bin/bash"},
 			},

@@ -518,13 +518,12 @@ func WithBaseArchive(archive *cpio.Archive) Modifier {
 // If this is empty, no uinit symlink will be created, but a user may
 // still specify a command called uinit or include a /bin/uinit file.
 func WithUinitCommand(cmd string) Modifier {
-	if cmd == "" {
-		return nil
-	}
 	return func(opts *Opts) error {
 		args := shlex.Split(cmd)
 		if len(args) > 0 {
 			opts.UinitCmd = args[0]
+		} else {
+			opts.UinitCmd = ""
 		}
 		if len(args) > 1 {
 			opts.UinitArgs = args[1:]
@@ -544,9 +543,6 @@ func WithUinitCommand(cmd string) Modifier {
 // and append arguments from both the kernel command-line
 // (uroot.uinitargs) as well as those specified in cmd.
 func WithUinit(arg0 string, args ...string) Modifier {
-	if arg0 == "" && len(args) == 0 {
-		return nil
-	}
 	return func(opts *Opts) error {
 		opts.UinitCmd = arg0
 		opts.UinitArgs = args
