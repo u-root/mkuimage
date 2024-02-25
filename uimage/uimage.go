@@ -559,9 +559,6 @@ func WithUinit(arg0 string, args ...string) Modifier {
 // This can be an absolute path or the name of a command included in
 // Commands.
 func WithInit(arg0 string) Modifier {
-	if arg0 == "" {
-		return nil
-	}
 	return func(opts *Opts) error {
 		opts.InitCmd = arg0
 		return nil
@@ -574,9 +571,6 @@ func WithInit(arg0 string) Modifier {
 // This can be an absolute path or the name of a command included in
 // Commands.
 func WithShell(arg0 string) Modifier {
-	if arg0 == "" {
-		return nil
-	}
 	return func(opts *Opts) error {
 		opts.DefaultShell = arg0
 		return nil
@@ -585,9 +579,6 @@ func WithShell(arg0 string) Modifier {
 
 // WithTempDir sets a temporary directory to use for building commands.
 func WithTempDir(dir string) Modifier {
-	if dir == "" {
-		return nil
-	}
 	return func(o *Opts) error {
 		o.TempDir = dir
 		return nil

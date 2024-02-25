@@ -21,6 +21,7 @@ func TestMods(t *testing.T) {
 		name   string
 		tpl    string
 		config string
+		base   []uimage.Modifier
 		want   *uimage.Opts
 		err    error
 	}{
@@ -109,6 +110,21 @@ configs:
 `,
 			config: "",
 		},
+		{
+			name: "override base",
+			tpl: `
+configs:
+  noinit:
+    init: ""
+`,
+			config: "noinit",
+			base: []uimage.Modifier{
+				uimage.WithInit("init"),
+			},
+			want: &uimage.Opts{
+				Env: golang.Default(),
+			},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			tpl, err := TemplateFrom([]byte(tt.tpl))
@@ -122,7 +138,7 @@ configs:
 			if len(mods) == 0 {
 				return
 			}
-			got, err := uimage.OptionsFor(mods...)
+			got, err := uimage.OptionsFor(append(tt.base, mods...)...)
 			if err != nil {
 				t.Fatal(err)
 			}
