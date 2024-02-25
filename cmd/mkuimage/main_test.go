@@ -58,7 +58,7 @@ func TestUrootCmdline(t *testing.T) {
 	execPath := filepath.Join(t.TempDir(), "binary")
 	// Build the stuff.
 	// NoTrimPath ensures that the right Go version is used when running the tests.
-	goEnv := golang.Default()
+	goEnv := golang.Default(golang.DisableCGO())
 	if err := goEnv.BuildDir(wd, execPath, &golang.BuildOpts{NoStrip: true, NoTrimPath: true, ExtraArgs: []string{"-cover"}}); err != nil {
 		t.Fatal(err)
 	}

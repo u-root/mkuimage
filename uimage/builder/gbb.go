@@ -5,7 +5,6 @@
 package builder
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"path"
@@ -71,20 +70,6 @@ func (b *GBBBuilder) Build(l *llog.Logger, af *initramfs.Files, opts Opts) error
 		GoBuildOpts:  opts.BuildOpts,
 	}
 	if err := bb.BuildBusybox(l.AtLevel(slog.LevelInfo), bopts); err != nil {
-		// Return some instructions for the user; this is printed last in the u-root tool.
-		//
-		// TODO: yeah, this isn't a good way to do error handling. The
-		// error should be the thing that's returned, I just wanted
-		// that to be printed first, and the instructions for what to
-		// do about it to be last.
-		var errGopath *bb.ErrGopathBuild
-		var errGomod *bb.ErrModuleBuild
-		if errors.As(err, &errGopath) {
-			return fmt.Errorf("%w: to reproduce build, `cd %s` and `GO111MODULE=off GOPATH=%s go build`: %w", ErrBusyboxFailed, errGopath.CmdDir, errGopath.GOPATH, err)
-		}
-		if errors.As(err, &errGomod) {
-			return fmt.Errorf("%w: to debug build, `cd %s` and use `go build` to build, or `go mod [why|tidy|graph]` to debug dependencies, or `go list -m all` to list all dependency versions:\n%w", ErrBusyboxFailed, errGomod.CmdDir, err)
-		}
 		return fmt.Errorf("%w: %w", ErrBusyboxFailed, err)
 	}
 

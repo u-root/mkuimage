@@ -37,7 +37,7 @@ func TestOpts(t *testing.T) {
 				uimage.WithTempDir("foo"),
 			},
 			f: &Flags{
-				Commands:      CommandFlags{Builder: "bb", Mod: "readonly"},
+				Commands:      CommandFlags{Builder: "bb"},
 				ArchiveFormat: "cpio",
 				Init:          "init",
 				Uinit:         "gosh script.sh",
@@ -101,7 +101,7 @@ func TestOpts(t *testing.T) {
 			},
 			conf: "plan9",
 			f: &Flags{
-				Commands:      CommandFlags{Builder: "bb", Mod: "readonly"},
+				Commands:      CommandFlags{Builder: "bb"},
 				ArchiveFormat: "cpio",
 				Init:          "init",
 				Uinit:         "cat",
@@ -145,7 +145,7 @@ func TestOpts(t *testing.T) {
 				uimage.WithTempDir("foo"),
 			},
 			f: &Flags{
-				Commands:      CommandFlags{Builder: "bb", Mod: "readonly"},
+				Commands:      CommandFlags{Builder: "bb"},
 				ArchiveFormat: "cpio",
 				OutputFile:    "./foo.cpio",
 				Files:         []string{"/bin/bash"},

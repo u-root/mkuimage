@@ -16,7 +16,7 @@ import (
 )
 
 func dirFor(env *golang.Environ, pkg string) (string, error) {
-	pkgs, err := env.Lookup(packages.NeedName|packages.NeedFiles, "", pkg)
+	pkgs, err := env.Lookup(packages.NeedName|packages.NeedFiles, pkg)
 	if err != nil {
 		return "", fmt.Errorf("failed to look up package %q: %v", pkg, err)
 	}
