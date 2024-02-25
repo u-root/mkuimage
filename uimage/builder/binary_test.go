@@ -6,6 +6,7 @@ package builder
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
@@ -42,7 +43,7 @@ func TestBinaryBuild(t *testing.T) {
 }
 
 func TestBinaryBuildError(t *testing.T) {
-	for _, tt := range []struct {
+	for i, tt := range []struct {
 		opts Opts
 		want error
 	}{
@@ -56,7 +57,7 @@ func TestBinaryBuildError(t *testing.T) {
 				TempDir:   t.TempDir(),
 				BinaryDir: "bbin",
 			},
-			want: ErrNoGoFiles,
+			want: ErrBinaryFailed,
 		},
 		{
 			opts: Opts{
@@ -79,10 +80,12 @@ func TestBinaryBuildError(t *testing.T) {
 			want: ErrEnvMissing,
 		},
 	} {
-		af := initramfs.NewFiles()
-		var b BinaryBuilder
-		if err := b.Build(llog.Test(t), af, tt.opts); !errors.Is(err, tt.want) {
-			t.Errorf("Build = %v, want %v", err, tt.want)
-		}
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			af := initramfs.NewFiles()
+			var b BinaryBuilder
+			if err := b.Build(llog.Test(t), af, tt.opts); !errors.Is(err, tt.want) {
+				t.Errorf("Build = %v, want %v", err, tt.want)
+			}
+		})
 	}
 }

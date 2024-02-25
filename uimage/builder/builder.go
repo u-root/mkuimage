@@ -25,9 +25,9 @@ var (
 // Possible build errors.
 var (
 	ErrBusyboxFailed  = errors.New("gobusybox build failed")
+	ErrBinaryFailed   = errors.New("binary build failed")
 	ErrEnvMissing     = errors.New("must specify Go build environment")
 	ErrTempDirMissing = errors.New("must supply temporary directory for build")
-	ErrNoGoFiles      = errors.New("could not find package directory")
 )
 
 // Opts are options passed to the Builder.Build function.

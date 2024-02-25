@@ -40,11 +40,7 @@ func (c *CommandFlags) RegisterFlags(f *flag.FlagSet) {
 	f.BoolVar(&c.BuildOpts.NoStrip, "no-strip", false, "Build unstripped binaries")
 
 	// Flags for golang.Environ.
-	defMod := ""
-	if golang.Default().GO111MODULE != "off" {
-		defMod = "readonly"
-	}
-	f.StringVar((*string)(&c.Mod), "go-mod", defMod, "Value of -mod to go commands (allowed: (empty), vendor, mod, readonly)")
+	f.StringVar((*string)(&c.Mod), "go-mod", string(c.Mod), "Value of -mod to go commands (allowed: (empty), vendor, mod, readonly)")
 	// Register an alias for -go-build-tags for backwards compatibility.
 	f.Var((*uflag.Strings)(&c.BuildTags), "tags", "Go build tags -- repeat the flag for multiple values")
 	f.Var((*uflag.Strings)(&c.BuildTags), "go-build-tags", "Go build tags -- repeat the flag for multiple values")
