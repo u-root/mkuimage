@@ -51,13 +51,13 @@ Here are some examples of using the `mkuimage` command to build an initramfs.
 
 ```shell
 git clone https://github.com/u-root/u-root
-git clone https://github.com/u-root/cpu
 ```
 
 Build gobusybox binaries of these two commands and add to initramfs:
 
 ```shell
-$ mkuimage ./u-root/cmds/core/{init,gosh}
+$ cd ./u-root
+$ mkuimage ./cmds/core/{init,gosh}
 
 $ cpio -ivt < /tmp/initramfs.linux_amd64.cpio
 ...
@@ -70,7 +70,7 @@ lrwxrwxrwx   0 root     root            2 Jan  1  1970 bbin/init -> bb
 Add symlinks for shell and init:
 
 ```shell
-$ mkuimage -initcmd=init -defaultsh=gosh ./u-root/cmds/core/{init,gosh}
+$ mkuimage -initcmd=init -defaultsh=gosh ./cmds/core/{init,gosh}
 
 $ cpio -ivt < /tmp/initramfs.linux_amd64.cpio
 ...
@@ -81,30 +81,32 @@ lrwxrwxrwx   0 root     root            9 Jan  1  1970 init -> bbin/init
 ...
 ```
 
+### Builds with globs and exclusion
+
 Build everything from core without ls and losetup:
 
 ```shell
-$ mkuimage ./u-root/cmds/core/* -./u-root/cmds/core/{ls,losetup}
+$ mkuimage ./cmds/core/* -./cmds/core/{ls,losetup}
 ```
 
-Build an initramfs with init, gosh and cpud in a gobusybox binary:
+### Multi-module workspace builds
 
 > [!IMPORTANT]
-> Since the commands are in 2 different modules, and cpud has a dependency on
-> u-root, we can't build one binary without resolving the dependency issue.
 >
-> Since no go.mod is found in the current directory, one will be synthesized as
-> the warning advertises.
->
-> To properly resolve these dependencies, head down to the [multi-module uimages section](#multi-module-uimages).
+> `mkuimage` works when `go build` and `go list` work as well.
+
+There are 2 ways to build multi-module command images using standard Go tooling.
 
 ```shell
+$ mkdir workspace
+$ cd workspace
+$ git clone https://github.com/u-root/u-root
+$ git clone https://github.com/u-root/cpu
+
+$ go work init ./u-root
+$ go work use ./cpu
+
 $ mkuimage ./u-root/cmds/core/{init,gosh} ./cpu/cmds/cpud
-...
-01:24:15 INFO GBB_STRICT is not set.
-01:24:15 INFO [WARNING] github.com/u-root/cpu/cmds/cpud depends on github.com/u-root/u-root @ version v0.11.1-0.20230913033713-004977728a9d
-01:24:15 INFO   Using github.com/u-root/u-root @ directory /home/u-root to build it.
-...
 
 $ cpio -ivt < /tmp/initramfs.linux_amd64.cpio
 ...
@@ -113,6 +115,11 @@ lrwxrwxrwx   0 root     root            2 Jan  1  1970 bbin/cpud -> bb
 lrwxrwxrwx   0 root     root            2 Jan  1  1970 bbin/gosh -> bb
 lrwxrwxrwx   0 root     root            2 Jan  1  1970 bbin/init -> bb
 ...
+
+# Works for offline vendored builds as well.
+$ go work vendor # Go 1.22 feature.
+
+$ mkuimage ./u-root/cmds/core/{init,gosh} ./cpu/cmds/cpud
 ```
 
 `GBB_PATH` is a place that mkuimage will look for commands. Each colon-separated
@@ -127,6 +134,65 @@ GBB_PATH=$(pwd)/u-root:$(pwd)/cpu mkuimage \
 # Matches
 #   ./u-root/cmds/core/{init,gosh}
 #   ./cpu/cmds/cpud
+```
+
+### Multi-module go.mod builds
+
+You may also create a go.mod with the commands you intend to compile.
+
+To depend on commands outside of ones own repository, the easiest way to depend
+on Go commands is the following:
+
+```sh
+mkdir mydistro
+cd mydistro
+go mod init mydistro
+```
+
+Create a file with some unused build tag like this to create dependencies on
+commands:
+
+```go
+//go:build tools
+
+package something
+
+import (
+        _ "github.com/u-root/u-root/cmds/core/ip"
+        _ "github.com/u-root/u-root/cmds/core/init"
+        _ "github.com/hugelgupf/p9/cmd/p9ufs"
+)
+```
+
+You can generate this file for your repo with the `gencmddeps` tool from
+gobusybox:
+
+```
+go install github.com/u-root/gobusybox/src/cmd/gencmddeps@latest
+
+gencmddeps -o deps.go -t tools -p something \
+    github.com/u-root/u-root/cmds/core/{ip,init} \
+    github.com/hugelgupf/p9/cmd/p9ufs
+```
+
+The unused build tag keeps it from being compiled, but its existence forces `go
+mod tidy` to add these dependencies to `go.mod`:
+
+```sh
+go mod tidy
+
+mkuimage \
+  github.com/u-root/u-root/cmds/core/ip \
+  github.com/u-root/u-root/cmds/core/init \
+  github.com/hugelgupf/p9/cmd/p9ufs
+
+# Works for offline vendored builds as well.
+go mod vendor
+
+mkuimage \
+  github.com/u-root/u-root/cmds/core/ip \
+  github.com/u-root/u-root/cmds/core/init \
+  github.com/hugelgupf/p9/cmd/p9ufs
 ```
 
 ## Extra Files
@@ -174,13 +240,15 @@ $ qemu-system-x86_64 -kernel /boot/vmlinuz-$(uname -r) -initrd /tmp/initramfs.li
 
 ## Cross Compilation (targeting different architectures and OSes)
 
+Just like standard Go tooling, cross compilation is easy and supported.
+
 To cross compile for an ARM, on Linux:
 
 ```shell
 GOARCH=arm mkuimage ./u-root/cmds/core/*
 ```
 
-If you are on OSX, and wish to build for Linux on AMD64:
+If you are on OS X, and wish to build for Linux on AMD64:
 
 ```shell
 GOOS=linux GOARCH=amd64 ./u-root/cmds/core/*
@@ -210,48 +278,6 @@ It may not have all features you require, however.
 To automate testing, you may use the same
 [vmtest](https://github.com/hugelgupf/vmtest) framework that we use as well. It
 has native uimage support.
-
-## Multi-module uimages
-
-Rather than having mkuimage decide how to resolve dependencies across
-multi-module repositories, you may also create a go.mod with all commands you
-intend to use in them.
-
-To depend on commands outside of ones own repository, the easiest way to depend
-on Go commands is the following:
-
-```sh
-TMPDIR=$(mktemp -d)
-cd $TMPDIR
-go mod init foobar
-```
-
-Create a file with some unused build tag like this to create dependencies on
-commands:
-
-```go
-//go:build tools
-
-package something
-
-import (
-        "github.com/u-root/u-root/cmds/core/ip"
-        "github.com/u-root/u-root/cmds/core/init"
-        "github.com/hugelgupf/p9/cmd/p9ufs"
-)
-```
-
-The unused build tag keeps it from being compiled, but its existence forces `go
-mod tidy` to add these dependencies to `go.mod`:
-
-```sh
-go mod tidy
-
-mkuimage \
-  github.com/u-root/u-root/cmds/core/ip \
-  github.com/u-root/u-root/cmds/core/init \
-  github.com/hugelgupf/p9/cmd/p9ufs
-```
 
 ## Build Modes
 
