@@ -64,22 +64,22 @@ func CreateUimage(l *llog.Logger, base []uimage.Modifier, tf *TemplateFlags, f *
 	}
 
 	keepTempDir := f.KeepTempDir
-	if f.TempDir == "" {
-		var err error
-		f.TempDir, err = os.MkdirTemp("", "u-root")
+	if f.TempDir == nil {
+		tempDir, err := os.MkdirTemp("", "u-root")
 		if err != nil {
 			return err
 		}
+		f.TempDir = &tempDir
 		defer func() {
 			if keepTempDir {
-				l.Infof("Keeping temp dir %s", f.TempDir)
+				l.Infof("Keeping temp dir %s", tempDir)
 			} else {
-				os.RemoveAll(f.TempDir)
+				os.RemoveAll(tempDir)
 			}
 		}()
-	} else if _, err := os.Stat(f.TempDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(f.TempDir, 0o755); err != nil {
-			return fmt.Errorf("temporary directory %q did not exist; tried to mkdir but failed: %v", f.TempDir, err)
+	} else if _, err := os.Stat(*f.TempDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(*f.TempDir, 0o755); err != nil {
+			return fmt.Errorf("temporary directory %q did not exist; tried to mkdir but failed: %v", *f.TempDir, err)
 		}
 	}
 

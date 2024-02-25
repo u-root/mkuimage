@@ -17,6 +17,23 @@ import (
 	"github.com/u-root/mkuimage/uimage/templates"
 )
 
+type optionalStringVar struct {
+	s **string
+}
+
+// Set implements flag.Value.Set.
+func (o optionalStringVar) Set(s string) error {
+	*o.s = &s
+	return nil
+}
+
+func (o *optionalStringVar) String() string {
+	if o == nil || o.s == nil || *(o.s) == nil {
+		return ""
+	}
+	return **(o.s)
+}
+
 // CommandFlags are flags related to Go commands to be built by mkuimage.
 type CommandFlags struct {
 	NoCommands bool
@@ -79,14 +96,19 @@ func (c *CommandFlags) Modifiers(packages ...string) ([]uimage.Modifier, error) 
 	}
 }
 
+// String can be used to fill in values for Init, Uinit, and Shell.
+func String(s string) *string {
+	return &s
+}
+
 // Flags are mkuimage command-line flags.
 type Flags struct {
-	TempDir     string
+	TempDir     *string
 	KeepTempDir bool
 
-	Init  string
-	Uinit string
-	Shell string
+	Init  *string
+	Uinit *string
+	Shell *string
 
 	Files []string
 
@@ -101,14 +123,24 @@ type Flags struct {
 // Modifiers return uimage modifiers created from the flags.
 func (f *Flags) Modifiers(packages ...string) ([]uimage.Modifier, error) {
 	m := []uimage.Modifier{
-		uimage.WithTempDir(f.TempDir),
-		uimage.WithInit(f.Init),
-		uimage.WithUinitCommand(f.Uinit),
-		uimage.WithShell(f.Shell),
 		uimage.WithFiles(f.Files...),
-		// ArchiveFormat does not determine this, as only CPIO is supported.
-		uimage.WithBaseFile(f.BaseArchive),
 		uimage.WithExistingInit(f.UseExistingInit),
+	}
+	if f.TempDir != nil {
+		m = append(m, uimage.WithTempDir(*f.TempDir))
+	}
+	if f.BaseArchive != "" {
+		// ArchiveFormat does not determine this, as only CPIO is supported.
+		m = append(m, uimage.WithBaseFile(f.BaseArchive))
+	}
+	if f.Init != nil {
+		m = append(m, uimage.WithInit(*f.Init))
+	}
+	if f.Uinit != nil {
+		m = append(m, uimage.WithUinitCommand(*f.Uinit))
+	}
+	if f.Shell != nil {
+		m = append(m, uimage.WithShell(*f.Shell))
 	}
 	switch f.ArchiveFormat {
 	case "cpio":
@@ -127,12 +159,12 @@ func (f *Flags) Modifiers(packages ...string) ([]uimage.Modifier, error) {
 
 // RegisterFlags registers flags.
 func (f *Flags) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(&f.TempDir, "tmp-dir", "", "Temporary directory to build binary and archive in. Deleted after build if --keep-tmp-dir is not set.")
+	fs.Var(&optionalStringVar{&f.TempDir}, "tmp-dir", "Temporary directory to build binary and archive in. Deleted after build if --keep-tmp-dir is not set.")
 	fs.BoolVar(&f.KeepTempDir, "keep-tmp-dir", f.KeepTempDir, "Keep temporary directory after build")
 
-	fs.StringVar(&f.Init, "initcmd", f.Init, "Symlink target for /init. Can be an absolute path or a Go command name. Use initcmd=\"\" if you don't want the symlink.")
-	fs.StringVar(&f.Uinit, "uinitcmd", f.Uinit, "Symlink target and arguments for /bin/uinit. Can be an absolute path or a Go command name, followed by command-line args. Use uinitcmd=\"\" if you don't want the symlink. E.g. -uinitcmd=\"echo foobar\"")
-	fs.StringVar(&f.Shell, "defaultsh", f.Shell, "Default shell. Can be an absolute path or a Go command name. Use defaultsh=\"\" if you don't want the symlink.")
+	fs.Var(&optionalStringVar{&f.Init}, "initcmd", "Symlink target for /init. Can be an absolute path or a Go command name. Use initcmd=\"\" if you don't want the symlink.")
+	fs.Var(&optionalStringVar{&f.Uinit}, "uinitcmd", "Symlink target and arguments for /bin/uinit. Can be an absolute path or a Go command name, followed by command-line args. Use uinitcmd=\"\" if you don't want the symlink. E.g. -uinitcmd=\"echo foobar\"")
+	fs.Var(&optionalStringVar{&f.Shell}, "defaultsh", "Default shell. Can be an absolute path or a Go command name. Use defaultsh=\"\" if you don't want the symlink.")
 
 	fs.Var((*uflag.Strings)(&f.Files), "files", "Additional files, directories, and binaries (with their ldd dependencies) to add to archive. Can be specified multiple times.")
 
