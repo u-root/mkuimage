@@ -136,6 +136,28 @@ GBB_PATH=$(pwd)/u-root:$(pwd)/cpu mkuimage \
 #   ./cpu/cmds/cpud
 ```
 
+To ease usability, the `goanywhere` tool can create one Go workspaces the fly.
+This works **only with local file system paths**:
+
+```shell
+$ go install github.com/u-root/gobusybox/src/cmd/goanywhere@latest
+
+$ goanywhere ./u-root/cmds/core/{init,gosh} ./cpu/cmds/cpud -- go build -o $(pwd)
+$ goanywhere ./u-root/cmds/core/{init,gosh} ./cpu/cmds/cpud -- mkuimage
+```
+
+`goanywhere` creates a workspace in a temporary directory with the given
+modules, and then execs `u-root` in the workspace passing along the command
+names.
+
+`goanywhere` supports `GBB_PATH`, exclusions, globs, and curly brace expansions
+as well.
+
+> [!CAUTION]
+>
+> While workspaces are good for local compilation, they are not meant to be
+> checked in to version control systems. See below for the recommended way.
+
 ### Multi-module go.mod builds
 
 You may also create a go.mod with the commands you intend to compile.
