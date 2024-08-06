@@ -131,6 +131,9 @@ func CreateUimage(l *llog.Logger, base []uimage.Modifier, tf *TemplateFlags, f *
 		l.Infof("Could not get environment's Go version, using runtime's version: %v", err)
 		v = runtime.Version()
 	}
+	if len(env.Compiler.VersionOutput) != 0 {
+		l.Infof("Compiler: %v", env.Compiler.VersionOutput)
+	}
 	if !isRecommendedVersion(v) {
 		l.Warnf(`You are not using one of the recommended Go versions (have = %s, recommended = %v).
 			Some packages may not compile.
