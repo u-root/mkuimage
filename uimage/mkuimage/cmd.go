@@ -81,8 +81,7 @@ func checkAmd64Level(l *llog.Logger, env *golang.Environ) {
 		}
 		bad = "may not be"
 	}
-	l.Warnf("GOAMD64 %s set to v1; on older CPUs, binaries built into " +
-		"the initrd may crash or refuse to run.", bad)
+	l.Warnf("GOAMD64 %s set to v1; on older CPUs, binaries built into the initrd may crash or refuse to run.", bad)
 }
 
 // CreateUimage creates a uimage with the given base modifiers and flags, using args as the list of commands.
@@ -124,12 +123,15 @@ func CreateUimage(l *llog.Logger, base []uimage.Modifier, tf *TemplateFlags, f *
 		l.Warnf("GOOS is not linux. Did you mean to set GOOS=linux?")
 	}
 
-	checkAmd64Level(l, env);
+	checkAmd64Level(l, env)
 
 	v, err := env.Version()
 	if err != nil {
 		l.Infof("Could not get environment's Go version, using runtime's version: %v", err)
 		v = runtime.Version()
+	}
+	if len(env.Compiler.VersionOutput) != 0 {
+		l.Infof("Compiler: %v", env.Compiler.VersionOutput)
 	}
 	if !isRecommendedVersion(v) {
 		l.Warnf(`You are not using one of the recommended Go versions (have = %s, recommended = %v).
