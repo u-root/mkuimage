@@ -518,16 +518,17 @@ func WithBaseArchive(archive *cpio.Archive) Modifier {
 // If this is empty, no uinit symlink will be created, but a user may
 // still specify a command called uinit or include a /bin/uinit file.
 func WithUinitCommand(cmd string) Modifier {
-	if cmd == "" {
-		return nil
-	}
 	return func(opts *Opts) error {
 		args := shlex.Split(cmd)
 		if len(args) > 0 {
 			opts.UinitCmd = args[0]
+		} else {
+			opts.UinitCmd = ""
 		}
 		if len(args) > 1 {
 			opts.UinitArgs = args[1:]
+		} else {
+			opts.UinitArgs = nil
 		}
 		return nil
 	}
@@ -574,9 +575,6 @@ func WithShell(arg0 string) Modifier {
 
 // WithTempDir sets a temporary directory to use for building commands.
 func WithTempDir(dir string) Modifier {
-	if dir == "" {
-		return nil
-	}
 	return func(o *Opts) error {
 		o.TempDir = dir
 		return nil
@@ -647,7 +645,7 @@ func CreateInitramfs(l *llog.Logger, opts Opts) error {
 			BinaryDir: cmds.TargetDir(),
 		}
 		if err := cmds.Builder.Build(l, files, bOpts); err != nil {
-			return fmt.Errorf("error building: %v", err)
+			return fmt.Errorf("error building: %w", err)
 		}
 	}
 
