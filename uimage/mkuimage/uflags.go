@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/u-root/gobusybox/src/pkg/golang"
 	"github.com/u-root/gobusybox/src/pkg/uflag"
@@ -48,7 +49,7 @@ type CommandFlags struct {
 func (c *CommandFlags) RegisterFlags(f *flag.FlagSet) {
 	f.StringVar(&c.Builder, "build", c.Builder, "uimage command build format (e.g. bb/gbb or binary).")
 	f.BoolVar(&c.NoCommands, "nocmd", c.NoCommands, "Build no Go commands; initramfs only")
-	f.BoolVar(&c.ShellBang, "shellbang", c.ShellBang, "Use #! instead of symlinks for busybox")
+	f.BoolVar(&c.ShellBang, "shellbang", runtime.GOOS == "plan9" || os.Getenv("GOOS") == "plan9", "Use #! instead of symlinks for busybox")
 	if c.BuildOpts == nil {
 		c.BuildOpts = &golang.BuildOpts{}
 	}
