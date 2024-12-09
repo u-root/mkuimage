@@ -7,8 +7,10 @@ package builder
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 
 	"github.com/u-root/gobusybox/src/pkg/bb"
 	"github.com/u-root/mkuimage/cpio"
@@ -85,7 +87,7 @@ func (b *GBBBuilder) Build(l *llog.Logger, af *initramfs.Files, opts Opts) error
 
 		// Add a symlink /bbin/{cmd} -> /bbin/bb to our initramfs.
 		// Or add a #! file if b.ShellBang is set ...
-		if b.ShellBang {
+		if b.ShellBang || runtime.GOOS == "plan9" || os.Getenv("GOOS") == "plan9" {
 			b := path.Base(pkg)
 			if err := af.AddRecord(cpio.StaticFile(filepath.Join(binaryDir, b), "#!/bbin/bb #!"+b+"\n", 0o755)); err != nil {
 				return err
