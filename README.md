@@ -260,6 +260,33 @@ $ mkuimage -files "$HOME/hello.ko:etc/hello.ko" -files "$HOME/hello2.ko:etc/hell
 $ qemu-system-x86_64 -kernel /boot/vmlinuz-$(uname -r) -initrd /tmp/initramfs.linux_amd64.cpio
 ```
 
+## AMD64 Architecture Level
+
+Before building for AMD64, verify that the command
+
+```shell
+go env GOAMD64
+```
+
+prints `v1`. A [`GOAMD64` setting](https://go.dev/wiki/MinimumRequirements#amd64)
+of any higher version may produce such binaries that don't execute on old AMD64
+processors (including the default CPU model of QEMU).
+
+`GOAMD64` can be reset to `v1` with one of the following methods:
+
+*   through the `GOAMD64` environment variable:
+
+    ```shell
+    export GOAMD64=v1
+    ```
+
+*   through `go env` (only takes effect if the `GOAMD64` environment variable
+    is not set):
+
+    ```shell
+    go env -w GOAMD64=v1
+    ```
+
 ## Cross Compilation (targeting different architectures and OSes)
 
 Just like standard Go tooling, cross compilation is easy and supported.
