@@ -42,6 +42,7 @@ type CommandFlags struct {
 	Mod        golang.ModBehavior
 	BuildTags  []string
 	BuildOpts  *golang.BuildOpts
+	Compiler   string
 }
 
 // RegisterFlags registers flags related to Go commands being built.
@@ -61,6 +62,8 @@ func (c *CommandFlags) RegisterFlags(f *flag.FlagSet) {
 	// Register an alias for -go-build-tags for backwards compatibility.
 	f.Var((*uflag.Strings)(&c.BuildTags), "tags", "Go build tags -- repeat the flag for multiple values")
 	f.Var((*uflag.Strings)(&c.BuildTags), "go-build-tags", "Go build tags -- repeat the flag for multiple values")
+	f.StringVar((*string)(&c.Compiler), "compiler", "", "override go compiler to use (e.g. \"/path/to/tinygo\")")
+
 }
 
 // Modifiers turns the flag values into uimage modifiers.
@@ -77,9 +80,13 @@ func (c *CommandFlags) Modifiers(packages ...string) ([]uimage.Modifier, error) 
 	switch c.Builder {
 	case "bb", "gbb":
 		return []uimage.Modifier{
-			uimage.WithEnv(golang.WithBuildTag(c.BuildTags...), func(e *golang.Environ) {
-				e.Mod = c.Mod
-			}),
+			uimage.WithEnv(
+				golang.WithBuildTag(c.BuildTags...),
+				golang.WithCompiler(c.Compiler),
+				func(e *golang.Environ) {
+					e.Mod = c.Mod
+				},
+			),
 			uimage.WithBusyboxCommands(packages...),
 			uimage.WithShellBang(c.ShellBang),
 			uimage.WithBusyboxBuildOpts(c.BuildOpts),
