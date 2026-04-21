@@ -12,6 +12,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"runtime"
 
 	"github.com/dustin/go-humanize"
 	"github.com/u-root/gobusybox/src/pkg/golang"
@@ -62,7 +63,7 @@ func main() {
 
 	env := golang.Default(golang.DisableCGO())
 	f := &mkuimage.Flags{
-		Commands:      mkuimage.CommandFlags{Builder: "bb"},
+		Commands:      mkuimage.CommandFlags{Builder: "bb", ShellBang: runtime.GOOS == "plan9" || os.Getenv("GOOS") == "plan9"},
 		ArchiveFormat: "cpio",
 		OutputFile:    defaultFile(env),
 	}
