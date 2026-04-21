@@ -221,8 +221,8 @@ mkuimage \
 
 You may also include additional files in the initramfs using the `-files` flag.
 
-If you add binaries with `-files` are listed, their ldd dependencies will be
-included as well.
+If you add binaries with `-files`, their ldd dependencies will be
+included as well by default. See below for how to disable.
 
 ```shell
 $ mkuimage -files /bin/bash
@@ -259,6 +259,38 @@ executing your currently booted kernel:
 $ mkuimage -files "$HOME/hello.ko:etc/hello.ko" -files "$HOME/hello2.ko:etc/hello2.ko" ./u-root/cmds/core/*
 $ qemu-system-x86_64 -kernel /boot/vmlinuz-$(uname -r) -initrd /tmp/initramfs.linux_amd64.cpio
 ```
+
+Use `-skip-ldd` to not automatically include ldd dependencies for binary files. This can be useful for
+- Reproducible Builds: Ensures builds don't depend on the host system's libraries
+- Cross-compilation: When host libraries are incompatible with target architecture
+- Controlled Dependencies: When you want to manually specify exact library versions
+
+## AMD64 Architecture Level
+
+Before building for AMD64, verify that the command
+
+```shell
+go env GOAMD64
+```
+
+prints `v1`. A [`GOAMD64` setting](https://go.dev/wiki/MinimumRequirements#amd64)
+of any higher version may produce such binaries that don't execute on old AMD64
+processors (including the default CPU model of QEMU).
+
+`GOAMD64` can be reset to `v1` with one of the following methods:
+
+*   through the `GOAMD64` environment variable:
+
+    ```shell
+    export GOAMD64=v1
+    ```
+
+*   through `go env` (only takes effect if the `GOAMD64` environment variable
+    is not set):
+
+    ```shell
+    go env -w GOAMD64=v1
+    ```
 
 ## Cross Compilation (targeting different architectures and OSes)
 

@@ -94,6 +94,26 @@ func TestFlags(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: []string{"-build=bb", "-skip-ldd"},
+			want: &Flags{
+				SkipLDD: true,
+				Commands: CommandFlags{
+					Builder:   "bb",
+					BuildOpts: &golang.BuildOpts{},
+				},
+			},
+		},
+		{
+			input: []string{"-build=bb", "-skip-ldd=false"},
+			want: &Flags{
+				SkipLDD: false,
+				Commands: CommandFlags{
+					Builder:   "bb",
+					BuildOpts: &golang.BuildOpts{},
+				},
+			},
+		},
 	} {
 		fs := flag.NewFlagSet("test", flag.ContinueOnError)
 		f := &Flags{}
@@ -126,6 +146,38 @@ func TestFlagModifiers(t *testing.T) {
 			cmds: []string{"foo"},
 			want: &uimage.Opts{
 				Env: golang.Default(),
+				Commands: []uimage.Commands{
+					{
+						Builder:   &builder.GBBBuilder{},
+						BuildOpts: &golang.BuildOpts{},
+					},
+				},
+			},
+		},
+		{
+			// Test that -skip-ldd flag sets SkipLDD to true
+			input: []string{"-build=bb", "-format=cpio", "-skip-ldd"},
+			base:  []uimage.Modifier{},
+			cmds:  []string{"foo"},
+			want: &uimage.Opts{
+				Env:     golang.Default(),
+				SkipLDD: true,
+				Commands: []uimage.Commands{
+					{
+						Builder:   &builder.GBBBuilder{},
+						BuildOpts: &golang.BuildOpts{},
+					},
+				},
+			},
+		},
+		{
+			// Test that without -skip-ldd flag, SkipLDD remains false
+			input: []string{"-build=bb", "-format=cpio"},
+			base:  []uimage.Modifier{},
+			cmds:  []string{"foo"},
+			want: &uimage.Opts{
+				Env:     golang.Default(),
+				SkipLDD: false,
 				Commands: []uimage.Commands{
 					{
 						Builder:   &builder.GBBBuilder{},

@@ -59,7 +59,9 @@ func DefaultRamfs() *cpio.Archive {
 			cpio.Directory("ubin", 0o755),
 			cpio.Directory("usr", 0o755),
 			cpio.Directory("usr/lib", 0o755),
+			cpio.Directory("var", 0o755),
 			cpio.Directory("var/log", 0o777),
+			cpio.Directory("var/lock", 0o777),
 			cpio.CharDev("dev/console", 0o600, 5, 1),
 			cpio.CharDev("dev/tty", 0o666, 5, 0),
 			cpio.CharDev("dev/null", 0o666, 1, 3),
@@ -796,7 +798,7 @@ func ParseExtraFiles(l *llog.Logger, archive *initramfs.Files, extraFiles []stri
 		if err != nil {
 			return fmt.Errorf("couldn't find absolute path for %q: %w", src, err)
 		}
-		if err := archive.AddFile(src, dst); err != nil {
+		if err := archive.AddFileNoFollow(src, dst); err != nil {
 			return fmt.Errorf("couldn't add %q to archive: %w", file, err)
 		}
 
