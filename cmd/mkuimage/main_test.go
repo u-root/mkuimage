@@ -307,7 +307,6 @@ func TestUrootCmdline(t *testing.T) {
 	}
 
 	for _, tt := range append(noCmdTests, bareTests...) {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			var g errgroup.Group
 			var f1, f2 *os.File

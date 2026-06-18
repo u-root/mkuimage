@@ -81,7 +81,7 @@ func checkAmd64Level(l *llog.Logger, env *golang.Environ) {
 		}
 		bad = "may not be"
 	}
-	l.Warnf("GOAMD64 %s set to v1; on older CPUs, binaries built into " +
+	l.Warnf("GOAMD64 %s set to v1; on older CPUs, binaries built into "+
 		"the initrd may crash or refuse to run.", bad)
 }
 
@@ -108,7 +108,7 @@ func CreateUimage(l *llog.Logger, base []uimage.Modifier, tf *TemplateFlags, f *
 		}()
 	} else if _, err := os.Stat(*f.TempDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(*f.TempDir, 0o755); err != nil {
-			return fmt.Errorf("temporary directory %q did not exist; tried to mkdir but failed: %v", *f.TempDir, err)
+			return fmt.Errorf("temporary directory %q did not exist; tried to mkdir but failed: %w", *f.TempDir, err)
 		}
 	}
 
@@ -124,7 +124,7 @@ func CreateUimage(l *llog.Logger, base []uimage.Modifier, tf *TemplateFlags, f *
 		l.Warnf("GOOS is not linux. Did you mean to set GOOS=linux?")
 	}
 
-	checkAmd64Level(l, env);
+	checkAmd64Level(l, env)
 
 	v, err := env.Version()
 	if err != nil {
