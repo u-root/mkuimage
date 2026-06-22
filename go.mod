@@ -6,7 +6,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/google/go-cmp v0.7.0
 	github.com/hugelgupf/go-shlex v0.0.0-20200702092117-c80c9d0918fa
-	github.com/u-root/gobusybox/src v0.0.0-20260319180309-6fd46286597e
+	github.com/u-root/gobusybox/src v0.3.0
 	github.com/u-root/u-root v0.12.0
 	github.com/u-root/uio v0.0.0-20240224005618-d2acac8f3701
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90
@@ -30,5 +30,5 @@ require (
 	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect
-	mvdan.cc/sh/v3 v3.13.0 // indirect
+	mvdan.cc/sh/v3 v3.11.0 // indirect
 )
