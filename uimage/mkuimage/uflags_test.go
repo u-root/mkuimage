@@ -114,6 +114,16 @@ func TestFlags(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: []string{"-build=binary", "-compiler=/path/to/tinygo"},
+			want: &Flags{
+				Commands: CommandFlags{
+					Builder:   "binary",
+					BuildOpts: &golang.BuildOpts{},
+					Compiler:  "/path/to/tinygo",
+				},
+			},
+		},
 	} {
 		fs := flag.NewFlagSet("test", flag.ContinueOnError)
 		f := &Flags{}
@@ -128,6 +138,12 @@ func TestFlags(t *testing.T) {
 }
 
 func TestFlagModifiers(t *testing.T) {
+	withCompiler := func(path string) *golang.Environ {
+		env := golang.Default()
+		env.Apply(golang.WithCompiler(path))
+		return env
+	}
+
 	for _, tt := range []struct {
 		input []string
 		base  []uimage.Modifier
@@ -184,6 +200,26 @@ func TestFlagModifiers(t *testing.T) {
 						BuildOpts: &golang.BuildOpts{},
 					},
 				},
+			},
+		},
+		{
+			input: []string{"-build=binary", "-format=cpio", "-compiler=/path/to/tinygo"},
+			base:  []uimage.Modifier{},
+			want: &uimage.Opts{
+				Env: withCompiler("/path/to/tinygo"),
+				Commands: []uimage.Commands{
+					{
+						Builder:   builder.Binary,
+						BuildOpts: &golang.BuildOpts{},
+					},
+				},
+			},
+		},
+		{
+			input: []string{"-nocmd", "-format=cpio", "-compiler=/path/to/tinygo"},
+			base:  []uimage.Modifier{},
+			want: &uimage.Opts{
+				Env: withCompiler("/path/to/tinygo"),
 			},
 		},
 	} {
