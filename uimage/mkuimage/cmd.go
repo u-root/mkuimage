@@ -21,9 +21,8 @@ import (
 )
 
 var recommendedVersions = []string{
-	"go1.23",
-	"go1.24",
 	"go1.25",
+	"go1.26",
 }
 
 func isRecommendedVersion(v string) bool {
