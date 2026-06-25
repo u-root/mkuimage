@@ -76,7 +76,7 @@ func TestOpts(t *testing.T) {
 			},
 			tpl: &templates.Templates{
 				Configs: map[string]templates.Config{
-					"plan9": templates.Config{
+					"plan9": {
 						GOOS:      "plan9",
 						GOARCH:    "amd64",
 						BuildTags: []string{"grpcnotrace"},
@@ -152,7 +152,7 @@ func TestOpts(t *testing.T) {
 			},
 			tpl: &templates.Templates{
 				Commands: map[string][]string{
-					"core": []string{
+					"core": {
 						"github.com/u-root/u-root/cmds/core/init",
 						"github.com/u-root/u-root/cmds/core/gosh",
 					},
